@@ -6,16 +6,17 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <cstring>                
+#include <cstring>
 #include <cerrno>
-#include <cstring>             
-#include <iostream>             
+#include <iostream>
 
 using namespace std;
 using namespace C150NETWORK;
 
-const int SERVER_ARG = 1;
-const int SRC_DIR    = 2;
+const int SERVER_ARG       = 1;
+const int NETWORK_NAST_ARG = 2;
+const int FILE_NAST_ARG    = 3;
+const int SRC_DIR          = 4;
 
 void checkDirectory(char *dirname);
 void checkAndPrintMessage(ssize_t readlen, char *msg, ssize_t bufferlen);
@@ -25,13 +26,13 @@ main(int argc, char *argv[]) {
 
     GRADEME(argc, argv);
 
-    struct dirent *sourceFile;
-    DIR *SRC;
-
-    if (argc != 3) {
-        cerr << "Correct syntax is " << argv[0] << " <SERVER> <SRC DIR>" << endl;
+    if (argc != 5) {
+        cerr << "Correct syntax is " << argv[0] << " <server> <networknastiness> <filenastiness> <srcdir>" << endl;
         exit(1);
     }
+
+    struct dirent *sourceFile;
+    DIR *SRC;
 
     checkDirectory(argv[SRC_DIR]);
     SRC = opendir(argv[SRC_DIR]);
@@ -53,12 +54,12 @@ main(int argc, char *argv[]) {
             C150DgmSocket *sock = new C150DgmSocket();
             sock -> setServerName(argv[SERVER_ARG]);
 
-            sock -> write(fileName, strlen(fileName)+1);
+            sock -> write(fileName, strlen(fileName) + 1);
             
             readLen = sock -> read(incomingMessage, sizeof(incomingMessage));
             checkAndPrintMessage(readLen, incomingMessage, sizeof(incomingMessage));
 
-        } catch (C150NetworkException& e) {
+        } catch (C150NetworkException &e) {
             // In case we're logging to a file, write to the console too
             cerr << argv[0] << ": caught C150NetworkException: " << e.formattedExplanation() << endl;
         }
