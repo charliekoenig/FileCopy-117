@@ -12,6 +12,7 @@
 #include <cstring>
 #include <cerrno>
 #include <iostream>
+#include <openssl/sha.h>
 
 using namespace C150NETWORK;
 
@@ -19,8 +20,8 @@ const int NETWORK_NAST_ARG = 1;
 const int FILE_NAST_ARG    = 2;
 const int TARGET_DIR       = 3;
 
-
 char *testRead(string sourceDir, string fileName, int nastiness);
+ssize_t readFile(string sourceDir, string fileName, int nastiness, unsigned char **obuff);
 
 int
 main(int argc, char *argv[]) {
@@ -53,18 +54,30 @@ main(int argc, char *argv[]) {
                                               // easier to work with, and cleanString
                                               // expects it
 
+            // one function to read file (PBR const unsigned char *), return length buffer (DONE)
+            unsigned char *fileContent;
+            ssize_t bytesRead = readFile(argv[TARGET_DIR], incoming, nastiness, &fileContent);
+            // TODO: Check for -1?
 
-            char *response = testRead(argv[TARGET_DIR], incoming, nastiness);
-            string finalResponse(response);
-            if (response[0] == '\0') {
-                free(response);
-                continue;
+            // one function to create hash, calls SHA1 on content (char *), strenlen(above), output buff
+                    // Create output buffer in main
+            unsigned char obuff[20];
+            SHA1((const unsigned  char *)fileContent, bytesRead, obuff);
+            for (int j = 0; j < 20; j++) {
+                printf("%02x", (unsigned int) obuff[j]);
             }
-            cleanString(finalResponse);            // c150ids-supplied utility: changes
-                                              // non-printing characters to .
+            cout << endl;
+            free(fileContent);
             
-            sock -> write(finalResponse.c_str(), finalResponse.length()+1);
-            free(response);
+            // send hash to client as entire response
+            string finalResponse((char *)obuff, 20);
+            sock -> write((const char *)obuff, finalResponse.length()+1);
+            
+            // stay in same iteration of loop waiting for SUCCESS/FAILURE from client
+                // sock -> read() (retransmisison or not)
+                // print filename + status
+                // send acknoledgement to client
+
             i++;
         }
             
@@ -81,6 +94,59 @@ main(int argc, char *argv[]) {
 bool isFile(string fname);
 string makeFileName(string dir, string name);
 
+ssize_t
+readFile(string sourceDir, string fileName, int nastiness, unsigned char **obuff) {
+    struct stat statbuff;
+    void *fopenretval;
+    size_t length;
+    size_t sourceSize;
+
+    string fullFilePath = makeFileName(sourceDir, fileName);
+
+    if (!isFile(fullFilePath)) {
+        cerr << "Input file " << fullFilePath << " is a directory or other non-regular file. Skipping" << endl;
+        return -1; 
+    }
+
+    try {
+
+        if (lstat(fullFilePath.c_str(), &statbuff) != 0) {
+            fprintf(stderr,"copyFile: Error stating supplied source file %s\n", fullFilePath.c_str());
+            exit(20);
+        }
+
+        sourceSize = statbuff.st_size;
+        *obuff = (unsigned char *)malloc(sourceSize);
+        
+        NASTYFILE inputFile(nastiness); 
+
+        fopenretval = inputFile.fopen(fullFilePath.c_str(), "rb");  
+        if (fopenretval == NULL) {
+            cerr << "Error opening input file " << fullFilePath << " errno=" << strerror(errno) << endl;
+            exit(12);
+        }
+
+        length = inputFile.fread(*obuff, 1, sourceSize);
+        if (length != sourceSize) {
+            cerr << "Error reading file " << fullFilePath << " errno=" << strerror(errno) << endl;
+            exit(16);
+        }
+
+        if (inputFile.fclose() != 0 ) {
+            cerr << "Error closing input file " << fullFilePath << " errno=" << strerror(errno) << endl;
+            exit(16);
+        }
+
+
+        return length;
+
+    } catch (C150Exception& e) {
+        cerr << "endtoendserver:readfile(): Caught C150Exception: " << e.formattedExplanation() << endl;
+    } 
+
+    return -1;
+}
+
 char *
 testRead(string sourceDir, string fileName, int nastiness) {
 
@@ -94,7 +160,6 @@ testRead(string sourceDir, string fileName, int nastiness) {
     struct stat statbuf;  
     size_t sourceSize;
 
-    // temporary
     char *empty;
 
 
@@ -129,8 +194,7 @@ testRead(string sourceDir, string fileName, int nastiness) {
         //
 
 
-        // sourceSize = statbuf.st_size;
-        sourceSize = 11;
+        sourceSize = statbuf.st_size;
         buffer = (char *)malloc(sourceSize);
 
         //

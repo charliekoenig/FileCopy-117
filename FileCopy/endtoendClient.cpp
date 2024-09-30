@@ -9,6 +9,9 @@
 #include <cstring>
 #include <cerrno>
 #include <iostream>
+#include <openssl/sha.h>
+#include "c150nastyfile.h"
+
 
 using namespace std;
 using namespace C150NETWORK;
@@ -20,6 +23,9 @@ const int SRC_DIR          = 4;
 
 void checkDirectory(char *dirname);
 void checkAndPrintMessage(ssize_t readlen, char *msg, ssize_t bufferlen);
+ssize_t readFile(string sourceDir, string fileName, int nastiness, unsigned char **obuff);
+string makeFileName(string dir, string name);
+bool isFile(string fname);
 
 int 
 main(int argc, char *argv[]) {
@@ -58,6 +64,24 @@ main(int argc, char *argv[]) {
             
             readLen = sock -> read(incomingMessage, sizeof(incomingMessage));
             checkAndPrintMessage(readLen, incomingMessage, sizeof(incomingMessage));
+
+            // adding on 9/30
+            unsigned char *fileContent;
+            ssize_t bytesRead = readFile(argv[SRC_DIR], fileName, atoi(argv[FILE_NAST_ARG]), &fileContent);
+            // TODO: Check for -1?
+
+            unsigned char obuff[20];
+            SHA1((const unsigned  char *)fileContent, bytesRead, obuff);
+            printf("75      : ");
+            for (int j = 0; j < 20; j++) {
+                printf("%02x", (unsigned int) obuff[j]);
+            }
+            cout << endl;
+
+            
+
+            free(fileContent);
+            // until here - 9/30
 
         } catch (C150NetworkException &e) {
             // In case we're logging to a file, write to the console too
@@ -119,12 +143,99 @@ checkAndPrintMessage(ssize_t readlen, char *msg, ssize_t bufferlen) {
     //
     // Note: cleanString wants a C++ string, not a char*, so we make a temporary one
     // here. Not super-fast, but this is just a demo program.
-    string s(msg);
+    string s(msg, readlen);
+    // cout << s << endl;
     cleanString(s);
-
+    // cout << s << endl << endl;
     // Echo the response on the console
-
+    printf("Response: ");
     c150debug->printf(C150APPLICATION,"PRINTING RESPONSE: Response received is \"%s\"\n", s.c_str());
-    printf("Response received is \"%s\"\n", s.c_str());
+    // printf("Response received is \"%02x\"\n", (unsigned int) s);
+    for (int h = 0; h < readlen - 1; h++) {
+        printf("%02x", (unsigned int) (unsigned char) msg[h]);
+    }
+    printf("\n");
+}
 
+ssize_t
+readFile(string sourceDir, string fileName, int nastiness, unsigned char **obuff) {
+    struct stat statbuff;
+    void *fopenretval;
+    size_t length;
+    size_t sourceSize;
+
+    string fullFilePath = makeFileName(sourceDir, fileName);
+
+    if (!isFile(fullFilePath)) {
+        cerr << "Input file " << fullFilePath << " is a directory or other non-regular file. Skipping" << endl;
+        return -1; 
+    }
+
+    try {
+
+        if (lstat(fullFilePath.c_str(), &statbuff) != 0) {
+            fprintf(stderr,"copyFile: Error stating supplied source file %s\n", fullFilePath.c_str());
+            exit(20);
+        }
+
+        sourceSize = statbuff.st_size;
+        *obuff = (unsigned char *)malloc(sourceSize);
+        
+        NASTYFILE inputFile(nastiness); 
+
+        fopenretval = inputFile.fopen(fullFilePath.c_str(), "rb");  
+        if (fopenretval == NULL) {
+            cerr << "Error opening input file " << fullFilePath << " errno=" << strerror(errno) << endl;
+            exit(12);
+        }
+
+        length = inputFile.fread(*obuff, 1, sourceSize);
+        if (length != sourceSize) {
+            cerr << "Error reading file " << fullFilePath << " errno=" << strerror(errno) << endl;
+            exit(16);
+        }
+
+        if (inputFile.fclose() != 0 ) {
+            cerr << "Error closing input file " << fullFilePath << " errno=" << strerror(errno) << endl;
+            exit(16);
+        }
+
+
+        return length;
+
+    } catch (C150Exception& e) {
+        cerr << "endtoendserver:readfile(): Caught C150Exception: " << e.formattedExplanation() << endl;
+    } 
+
+    return -1;
+}
+
+
+string
+makeFileName(string dir, string name) {
+    stringstream ss;
+
+    ss << dir;
+    // make sure dir name ends in /
+    if (dir.substr(dir.length()-1,1) != "/")
+        ss << '/';
+    ss << name;     // append file name to dir
+    return ss.str();  // return dir/name
+  
+}
+
+bool
+isFile(string fname) {
+    const char *filename = fname.c_str();
+    struct stat statbuf;  
+    if (lstat(filename, &statbuf) != 0) {
+        fprintf(stderr,"isFile: Error stating supplied source file %s\n", filename);
+        return false;
+    }
+
+    if (!S_ISREG(statbuf.st_mode)) {
+        fprintf(stderr,"isFile: %s exists but is not a regular file\n", filename);
+        return false;
+    }
+    return true;
 }
