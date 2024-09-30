@@ -88,6 +88,6 @@ makedatafile: makedatafile.cpp
 # for forcing complete rebuild#
 
 clean:
-	rm -f endtoendclient endtoendserver nastyfiletest sha1test makedatafile *.o 
+	rm -f endtoendclient endtoendserver nastyfiletest sha1test makedatafile *.o GRADE*
 
 
