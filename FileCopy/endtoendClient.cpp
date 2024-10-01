@@ -1,7 +1,7 @@
-#include "c150dgmsocket.h"
+#include "c150nastydgmsocket.h"
 #include "c150debug.h"
 #include "c150grading.h"
-#include <fstream>
+#include "nastyfileops.h"
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -10,8 +10,6 @@
 #include <cerrno>
 #include <iostream>
 #include <openssl/sha.h>
-#include "c150nastyfile.h"
-
 
 using namespace std;
 using namespace C150NETWORK;
@@ -23,9 +21,6 @@ const int SRC_DIR          = 4;
 
 void checkDirectory(char *dirname);
 void checkAndPrintMessage(ssize_t readlen, char *msg, ssize_t bufferlen);
-ssize_t readFile(string sourceDir, string fileName, int nastiness, unsigned char **obuff);
-string makeFileName(string dir, string name);
-bool isFile(string fname);
 
 int 
 main(int argc, char *argv[]) {
@@ -93,7 +88,6 @@ main(int argc, char *argv[]) {
     return 0;
 }
 
-
 void
 checkDirectory(char *dirname) {
     struct stat statbuf;  
@@ -155,87 +149,4 @@ checkAndPrintMessage(ssize_t readlen, char *msg, ssize_t bufferlen) {
         printf("%02x", (unsigned int) (unsigned char) msg[h]);
     }
     printf("\n");
-}
-
-ssize_t
-readFile(string sourceDir, string fileName, int nastiness, unsigned char **obuff) {
-    struct stat statbuff;
-    void *fopenretval;
-    size_t length;
-    size_t sourceSize;
-
-    string fullFilePath = makeFileName(sourceDir, fileName);
-
-    if (!isFile(fullFilePath)) {
-        cerr << "Input file " << fullFilePath << " is a directory or other non-regular file. Skipping" << endl;
-        return -1; 
-    }
-
-    try {
-
-        if (lstat(fullFilePath.c_str(), &statbuff) != 0) {
-            fprintf(stderr,"copyFile: Error stating supplied source file %s\n", fullFilePath.c_str());
-            exit(20);
-        }
-
-        sourceSize = statbuff.st_size;
-        *obuff = (unsigned char *)malloc(sourceSize);
-        
-        NASTYFILE inputFile(nastiness); 
-
-        fopenretval = inputFile.fopen(fullFilePath.c_str(), "rb");  
-        if (fopenretval == NULL) {
-            cerr << "Error opening input file " << fullFilePath << " errno=" << strerror(errno) << endl;
-            exit(12);
-        }
-
-        length = inputFile.fread(*obuff, 1, sourceSize);
-        if (length != sourceSize) {
-            cerr << "Error reading file " << fullFilePath << " errno=" << strerror(errno) << endl;
-            exit(16);
-        }
-
-        if (inputFile.fclose() != 0 ) {
-            cerr << "Error closing input file " << fullFilePath << " errno=" << strerror(errno) << endl;
-            exit(16);
-        }
-
-
-        return length;
-
-    } catch (C150Exception& e) {
-        cerr << "endtoendserver:readfile(): Caught C150Exception: " << e.formattedExplanation() << endl;
-    } 
-
-    return -1;
-}
-
-
-string
-makeFileName(string dir, string name) {
-    stringstream ss;
-
-    ss << dir;
-    // make sure dir name ends in /
-    if (dir.substr(dir.length()-1,1) != "/")
-        ss << '/';
-    ss << name;     // append file name to dir
-    return ss.str();  // return dir/name
-  
-}
-
-bool
-isFile(string fname) {
-    const char *filename = fname.c_str();
-    struct stat statbuf;  
-    if (lstat(filename, &statbuf) != 0) {
-        fprintf(stderr,"isFile: Error stating supplied source file %s\n", filename);
-        return false;
-    }
-
-    if (!S_ISREG(statbuf.st_mode)) {
-        fprintf(stderr,"isFile: %s exists but is not a regular file\n", filename);
-        return false;
-    }
-    return true;
 }
