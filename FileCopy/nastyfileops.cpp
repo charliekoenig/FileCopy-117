@@ -11,6 +11,9 @@ using namespace C150NETWORK;
     * string fname -> Name of the file within the directory
 
  * Return: A string representing a relative file path
+
+ * written by: Noah Mendelsohn 
+   from: nastyfiletest.cpp
 ***********************************************************/
 string
 makeFileName(string dir, string fname) {
@@ -35,6 +38,9 @@ makeFileName(string dir, string fname) {
     * string fname -> Relative path of a file
 
  * Return: A boolean (true if fname is a file, false if not)
+
+ * written by: Noah Mendelsohn 
+   from: nastyfiletest.cpp
 ***********************************************************/
 bool
 isFile(string fname) {
