@@ -1,2 +1,0 @@
-THIS IS LOG FILE: GRADELOG.endtoendclient.2024:10:02_18:43:33.txt
-Grading log started on 10/02/2024 18:43:33.631968 Command line = [./endtoendclient comp117-02 0 0 SRC]

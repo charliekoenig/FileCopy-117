@@ -1,2 +1,0 @@
-THIS IS LOG FILE: GRADELOG.endtoendserver.2024:10:02_18:43:25.txt
-Grading log started on 10/02/2024 18:43:25.955320 Command line = [./endtoendserver 0 0 TARGET]
