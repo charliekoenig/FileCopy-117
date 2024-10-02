@@ -55,7 +55,7 @@ main(int argc, char *argv[]) {
 
             // Output buffer populated with SHA1 hash
             unsigned char obuff[20];
-            SHA1((const unsigned  char *)fileContent, bytesRead, obuff);
+            SHA1((const unsigned char *)fileContent, bytesRead, obuff);
             
             // Temporary: Print hash to terminal
             for (int j = 0; j < 20; j++) {

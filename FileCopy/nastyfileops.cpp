@@ -7,7 +7,7 @@ using namespace C150NETWORK;
  * Function: makeFileName
  
  * Parameters: 
-    * string dir   -> Directory name containing the file
+    * string dir -> Directory name containing the file
     * string fname -> Name of the file within the directory
 
  * Return: A string representing a relative file path
