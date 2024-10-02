@@ -20,7 +20,6 @@ const int FILE_NAST_ARG    = 3;
 const int SRC_DIR          = 4;
 
 void checkDirectory(char *dirname);
-// void checkAndPrintMessage(ssize_t readlen, char *msg, ssize_t bufferlen);
 
 int 
 main(int argc, char *argv[]) {
@@ -62,7 +61,6 @@ main(int argc, char *argv[]) {
             
             // receive computed hash of file in target directory from server
             readLen = sock -> read(incomingMessage, sizeof(incomingMessage));
-            // checkAndPrintMessage(readLen, incomingMessage, sizeof(incomingMessage));
 
             // read file content
             unsigned char *fileContent;
@@ -119,65 +117,3 @@ checkDirectory(char *dirname) {
         exit(8);
     }
 }
-
-/**********************************************************
- * Function: checkAndPrintMessage
- 
- * Parameters: 
-    * char *dirname   -> possible directory name
-
- * Return: nothing
-
- * Side Effects: prints error and exits program if dirname
-                 is not a valid directory name
-
- * written by: Noah Mendelsohn 
-   from: nastyfiletest.cpp
-***********************************************************/
-// void
-// checkAndPrintMessage(ssize_t readlen, char *msg, ssize_t bufferlen) {
-//     // 
-//     // Except in case of timeouts, we're not expecting
-//     // a zero length read
-//     //
-//     if (readlen == 0) {
-//         throw C150NetworkException("Unexpected zero length read in client");
-//     }
-
-//     // DEFENSIVE PROGRAMMING: we aren't even trying to read this much
-//     // We're just being extra careful to check this
-//     if (readlen > (int)(bufferlen)) {
-//         throw C150NetworkException("Unexpected over length read in client");
-//     }
-
-//     //
-//     // Make sure server followed the rules and
-//     // sent a null-terminated string (well, we could
-//     // check that it's all legal characters, but 
-//     // at least we look for the null)
-//     //
-//     if(msg[readlen-1] != '\0') {
-//         throw C150NetworkException("Client received message that was not null terminated");     
-//     };
-
-//     //
-//     // Use a routine provided in c150utility.cpp to change any control
-//     // or non-printing characters to "." (this is just defensive programming:
-//     // if the server maliciously or inadvertently sent us junk characters, then we 
-//     // won't send them to our terminal -- some 
-//     // control characters can do nasty things!)
-//     //
-//     // Note: cleanString wants a C++ string, not a char*, so we make a temporary one
-//     // here. Not super-fast, but this is just a demo program.
-//     string s(msg, readlen);
-//     cleanString(s);
-
-//     // Echo the response on the console
-//     printf("Response: ");
-//     c150debug->printf(C150APPLICATION,"PRINTING RESPONSE: Response received is \"%s\"\n", s.c_str());
-
-//     for (int h = 0; h < readlen - 1; h++) {
-//         printf("%02x", (unsigned int) (unsigned char) msg[h]);
-//     }
-//     printf("\n");
-// }
