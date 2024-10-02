@@ -2,6 +2,7 @@
 #include "c150debug.h"
 #include "c150grading.h"
 #include "nastyfileops.h"
+#include "packetstruct.h"
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -56,11 +57,15 @@ main(int argc, char *argv[]) {
         try { 
             C150DgmSocket *sock = new C150DgmSocket();
             sock -> setServerName(argv[SERVER_ARG]);
+            packet filePacket = makePacket('F', strlen(fileName) + 1, fileName);
+
+            printf("Data: %s\n", packetToString(filePacket));
 
             sock -> write(fileName, strlen(fileName) + 1);
             
             // receive computed hash of file in target directory from server
             readLen = sock -> read(incomingMessage, sizeof(incomingMessage));
+            cout << readLen << endl;
 
             // read file content
             unsigned char *fileContent;

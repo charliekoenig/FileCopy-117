@@ -49,8 +49,8 @@ all: nastyfiletest makedatafile sha1test endtoendclient endtoendserver
 #
 # Build the endtoendClient
 #
-endtoendclient: endtoendClient.cpp nastyfileops.cpp $(C150AR) $(INCLUDES)
-	$(CPP) -o endtoendclient  $(CPPFLAGS) endtoendClient.cpp nastyfileops.cpp $(C150AR) -lssl -lcrypto
+endtoendclient: endtoendClient.cpp nastyfileops.cpp packetstruct.cpp $(C150AR) $(INCLUDES)
+	$(CPP) -o endtoendclient  $(CPPFLAGS) endtoendClient.cpp nastyfileops.cpp packetstruct.cpp $(C150AR) -lssl -lcrypto
 
 #
 # Build the endtoendServer

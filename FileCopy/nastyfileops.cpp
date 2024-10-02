@@ -128,7 +128,7 @@ readFile(string dir, string fname, int nastiness, unsigned char **obuff) {
         return length;
 
     } catch (C150Exception& e) {
-        if (*obuff != null) {
+        if (*obuff != NULL) {
             free(*obuff);
         }
         cerr << "endtoendserver:readfile(): Caught C150Exception: " << e.formattedExplanation() << endl;
