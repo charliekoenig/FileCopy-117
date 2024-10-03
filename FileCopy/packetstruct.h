@@ -5,11 +5,11 @@
 
 typedef struct packetStruct *packet;
 
-packet makePacket(char opcode, char packetLength, char *content);
+packet makePacket(char opcode, int packetLength, char *content);
 packet packetToString(char *packetString);
 
 char *packetContent(packet packet);
-char  packetLength(packet packet);
+int  packetLength(packet packet);
 char  packetOpcode(packet packet);
 
 char *packetToString(packet packet);

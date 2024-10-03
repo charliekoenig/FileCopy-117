@@ -58,15 +58,16 @@ main(int argc, char *argv[]) {
             C150DgmSocket *sock = new C150DgmSocket();
             sock -> setServerName(argv[SERVER_ARG]);
             
-            packet filePacket = makePacket('F', strlen(fileName) + 1, fileName);
-            printf("Data: %s\n", packetToString(filePacket));
-            freePacket(filePacket);
+            packet diskData = makePacket('F', strlen(fileName), fileName);
+            char *packetString = packetToString(diskData);
+            freePacket(diskData);
+            (void)packetString;
 
             sock -> write(fileName, strlen(fileName) + 1);
             
             // receive computed hash of file in target directory from server
             readLen = sock -> read(incomingMessage, sizeof(incomingMessage));
-            cout << readLen << endl;
+            (void)readLen;
 
             // read file content
             unsigned char *fileContent;
@@ -76,13 +77,6 @@ main(int argc, char *argv[]) {
             // compute hash for file in source directory
             unsigned char obuff[20];
             SHA1((const unsigned  char *)fileContent, bytesRead, obuff);
-
-            // Temporary: print hash to terminal
-            printf("75      : ");
-            for (int j = 0; j < 20; j++) {
-                printf("%02x", (unsigned int) obuff[j]);
-            }
-            cout << endl;
 
             free(fileContent);
 
