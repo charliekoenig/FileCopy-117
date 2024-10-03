@@ -6,13 +6,13 @@
 typedef struct packetStruct *packet;
 
 packet makePacket(char opcode, int packetLength, char *content);
-packet packetToString(char *packetString);
+packet stringToPacket(char *packetString);
 
 char *packetContent(packet packet);
 int  packetLength(packet packet);
 char  packetOpcode(packet packet);
 
-unsigned char *packetToString(packet packet);
+char *packetToString(packet packet);
 void freePacket(packet packet);
 
 #endif

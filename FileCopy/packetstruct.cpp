@@ -36,6 +36,19 @@ packet makePacket(char opcode, int length, char *content) {
     return newPacket;
 }
 
+// note: cast to unsigned char when converting to integer for lengths
+packet stringToPacket(char *packetString) {
+    char opcode = packetString[0];
+    int length = (packetString[1] - '\0') - 3;
+    char *content = (char *)malloc(length);
+
+    for (int i = 2; i < 2 + length; i++) {
+        content[i - 2] = packetString[i];
+    }
+
+    return makePacket(opcode, length, content);
+}
+
 char *
 packetContent(packet packet) {
     return packet->content;
@@ -51,10 +64,10 @@ packetOpcode(packet packet) {
     return packet->opcode;
 }
 
-unsigned char *
+char *
 packetToString(packet packet) {
     int length = packetLength(packet) + 2;
-    unsigned char *packetString = (unsigned char *)malloc(length);
+    char *packetString = (char *)malloc(length);
     
     packetString[0] = packetOpcode(packet);
     packetString[1] = length + '\0';
@@ -67,11 +80,11 @@ packetToString(packet packet) {
     }
 
     // Debug output
-    cout << "Debug: packetToString created string with length " << length << endl;
-    cout << "Debug: Opcode: " << (int)packetString[0] << endl;
-    cout << "Debug: Length byte: " << (int)(unsigned char)packetString[1] << endl;
-    cout << "Debug: Content: " << string(packetString + 2, length - 2) << endl;
-    cout << "Debug: Last character of packet string: " << (int)packetString[length - 1] << endl << endl;
+    cout << "P->S: Debug: packetToString created string with length " << length << endl;
+    cout << "P->S: Debug: Opcode: " << (int)packetString[0] << endl;
+    cout << "P->S: Debug: Length byte: " << (int)(unsigned char)packetString[1] << endl;
+    cout << "P->S: Debug: Content: " << string(packetString + 2, length - 2) << endl;
+    cout << "P->S: Debug: Last character of packet string: " << (int)packetString[length - 1] << endl << endl;
 
     return packetString;
 }

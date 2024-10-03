@@ -57,10 +57,14 @@ main(int argc, char *argv[]) {
         try { 
             C150DgmSocket *sock = new C150DgmSocket();
             sock -> setServerName(argv[SERVER_ARG]);
+
+            printf("FILENAME: %s\n", fileName);
             
             packet diskData = makePacket('F', strlen(fileName), fileName);
-            unsigned char *packetString = packetToString(diskData);
+            char *packetString = packetToString(diskData);
+            packet packetPacket = stringToPacket(packetString);
             freePacket(diskData);
+            freePacket(packetPacket);
             (void)packetString;
 
             sock -> write(fileName, strlen(fileName) + 1);
@@ -79,6 +83,7 @@ main(int argc, char *argv[]) {
             SHA1((const unsigned  char *)fileContent, bytesRead, obuff);
 
             free(fileContent);
+            printf("--------------------\n");
 
         } catch (C150NetworkException &e) {
             // write error to console
