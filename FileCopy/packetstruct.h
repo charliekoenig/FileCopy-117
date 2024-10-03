@@ -12,7 +12,7 @@ char *packetContent(packet packet);
 int  packetLength(packet packet);
 char  packetOpcode(packet packet);
 
-char *packetToString(packet packet);
+unsigned char *packetToString(packet packet);
 void freePacket(packet packet);
 
 #endif

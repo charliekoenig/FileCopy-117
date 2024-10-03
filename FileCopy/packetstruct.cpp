@@ -36,7 +36,6 @@ packet makePacket(char opcode, int length, char *content) {
     return newPacket;
 }
 
-
 char *
 packetContent(packet packet) {
     return packet->content;
@@ -52,10 +51,10 @@ packetOpcode(packet packet) {
     return packet->opcode;
 }
 
-char *
+unsigned char *
 packetToString(packet packet) {
     int length = packetLength(packet) + 2;
-    char *packetString = (char *)malloc(length);
+    unsigned char *packetString = (unsigned char *)malloc(length);
     
     packetString[0] = packetOpcode(packet);
     packetString[1] = length + '\0';

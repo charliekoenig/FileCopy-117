@@ -59,7 +59,7 @@ main(int argc, char *argv[]) {
             sock -> setServerName(argv[SERVER_ARG]);
             
             packet diskData = makePacket('F', strlen(fileName), fileName);
-            char *packetString = packetToString(diskData);
+            unsigned char *packetString = packetToString(diskData);
             freePacket(diskData);
             (void)packetString;
 
