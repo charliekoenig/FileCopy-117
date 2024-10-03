@@ -28,9 +28,9 @@ packet makePacket(char opcode, int length, char *content) {
     newPacket->content[length] = '\0';
 
     // Debug output
-    printf("Debug: makePacket created packet with length %d\n", newPacket->length);
-    printf("Debug: Last character of content: %d\n", (int)newPacket->content[length]);
-    printf("Debug: Null terminator present: %s\n\n", newPacket->content[length] == '\0' ? "Yes" : "No");
+    // printf("Debug: makePacket created packet with length %d\n", newPacket->length);
+    // printf("Debug: Last character of content: %d\n", (int)newPacket->content[length]);
+    // printf("Debug: Null terminator present: %s\n\n", newPacket->content[length] == '\0' ? "Yes" : "No");
 
 
     return newPacket;
@@ -80,11 +80,11 @@ packetToString(packet packet) {
     }
 
     // Debug output
-    cout << "P->S: Debug: packetToString created string with length " << length << endl;
-    cout << "P->S: Debug: Opcode: " << (int)packetString[0] << endl;
-    cout << "P->S: Debug: Length byte: " << (int)(unsigned char)packetString[1] << endl;
-    cout << "P->S: Debug: Content: " << string(packetString + 2, length - 2) << endl;
-    cout << "P->S: Debug: Last character of packet string: " << (int)packetString[length - 1] << endl << endl;
+    // cout << "P->S: Debug: packetToString created string with length " << length << endl;
+    // cout << "P->S: Debug: Opcode: " << (int)packetString[0] << endl;
+    // cout << "P->S: Debug: Length byte: " << (int)(unsigned char)packetString[1] << endl;
+    // cout << "P->S: Debug: Content: " << string(packetString + 2, length - 2) << endl;
+    // cout << "P->S: Debug: Last character of packet string: " << (int)packetString[length - 1] << endl << endl;
 
     return packetString;
 }

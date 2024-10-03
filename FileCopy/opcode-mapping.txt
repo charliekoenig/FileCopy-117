@@ -1,0 +1,11 @@
+F -> filename (C -> S)
+        content: opcode(1)+
+                 length(1)+
+                 filename(length)
+H -> sha (S -> C)
+        content: opcode(1)+
+                 length(1)+
+                 sha(20)+
+                 filename(length)
+S -> status: success or failure (C -> S)
+A -> ack (S -> C)

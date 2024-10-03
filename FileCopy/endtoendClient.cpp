@@ -21,6 +21,7 @@ const int FILE_NAST_ARG    = 3;
 const int SRC_DIR          = 4;
 
 void checkDirectory(char *dirname);
+bool parseHash(packet hashPacket, char *currFilename, unsigned char *parsedHash);
 
 int 
 main(int argc, char *argv[]) {
@@ -62,15 +63,21 @@ main(int argc, char *argv[]) {
             
             packet diskData = makePacket('F', strlen(fileName), fileName);
             char *packetString = packetToString(diskData);
-            packet packetPacket = stringToPacket(packetString);
-            freePacket(diskData);
-            freePacket(packetPacket);
-            (void)packetString;
-
-            sock -> write(fileName, strlen(fileName) + 1);
             
+            sock -> write(packetString, packetLength(diskData) + 2);
+            freePacket(diskData);
             // receive computed hash of file in target directory from server
             readLen = sock -> read(incomingMessage, sizeof(incomingMessage));
+            packet hashFromServer = stringToPacket(incomingMessage);
+            // if (packetOpcode(filenamePacket) != 'H') { JUST_ASKING_FOR_HASH; }
+            cout << "endtoendclient: " << packetContent(hashFromServer) << endl;
+            unsigned char parsedHash[20];
+            cout << "filenames are matching? " << parseHash(hashFromServer, fileName, parsedHash) << endl;
+            // discard if filenames not matching
+            // for (int j = 0; j < 20; j++) {
+            //     printf("%02x", parsedHash[j]);
+            // }
+            // cout << endl;
             (void)readLen;
 
             // read file content
@@ -122,3 +129,25 @@ checkDirectory(char *dirname) {
         exit(8);
     }
 }
+
+bool
+parseHash(packet hashPacket, char *currFilename, unsigned char *parsedHash) {
+    // parse hashPacket's packetContent and store first 20 in hash and rest in filenamePacket
+    char packetsFilename[packetLength(hashPacket) - 2 - 20];
+    for (int i = 0; i < packetLength(hashPacket); i++) {
+        if (i < 20) {
+            // update parsedHash with hash that we parse from hashPacket's packetContent
+            parsedHash[i] =  packetContent(hashPacket)[i];
+        } else {
+            packetsFilename[i - 20] = packetContent(hashPacket)[i];
+        }
+    }
+
+    cout << "146: " << currFilename    << endl;
+    cout << "147: " << packetsFilename << endl;
+
+    // compare filenamepacket with currFilename
+    return strcmp((const char *) currFilename, (const char *) packetsFilename) == 0;
+}
+
+// to do for fri: comparing hashes, getting things out of main in both client & server, S & A packets, gradelog & debug prints

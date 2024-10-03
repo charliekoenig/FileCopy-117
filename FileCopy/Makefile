@@ -55,8 +55,8 @@ endtoendclient: endtoendClient.cpp nastyfileops.cpp packetstruct.cpp $(C150AR) $
 #
 # Build the endtoendServer
 #
-endtoendserver: endtoendServer.cpp nastyfileops.cpp $(C150AR) $(INCLUDES)
-	$(CPP) -o endtoendserver  $(CPPFLAGS) endtoendServer.cpp nastyfileops.cpp $(C150AR) -lssl -lcrypto
+endtoendserver: endtoendServer.cpp nastyfileops.cpp packetstruct.cpp $(C150AR) $(INCLUDES)
+	$(CPP) -o endtoendserver  $(CPPFLAGS) endtoendServer.cpp nastyfileops.cpp packetstruct.cpp $(C150AR) -lssl -lcrypto
 
 #
 # Build the nastyfiletest sample
