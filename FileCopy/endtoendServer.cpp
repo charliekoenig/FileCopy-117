@@ -3,13 +3,13 @@
 #include "c150grading.h"
 #include "nastyfileops.h"
 #include "packetstruct.h"
+#include "makeserverpackets.h"
 #include <cstdlib>
 #include <sys/types.h>
 #include <unistd.h>
 #include <cstring>
 #include <cerrno>
 #include <iostream>
-#include <openssl/sha.h>
 
 using namespace C150NETWORK;
 
@@ -44,67 +44,54 @@ main(int argc, char *argv[]) {
             }    
 
             // convert incoming file check request packet to a string
-            packet incomingPacket = stringToPacket(incoming);
+            packet packetIn = stringToPacket(incoming);
+            packet packetOut = NULL;
 
-            cout << packetToString(incomingPacket) << endl;
-            cout << packetOpcode(incomingPacket) << endl;
-            cout << packetLength(incomingPacket) << endl;
-            cout << packetContent(incomingPacket) << endl;
+            cout << packetToString(packetIn) << endl;
+            cout << packetOpcode(packetIn) << endl;
+            cout << packetLength(packetIn) << endl;
+            cout << packetContent(packetIn) << endl;
 
-            packet outgoingPacket;
 
             // Should be engineered in a way that allows us to continue loop, no guarantee the next packet is the confirmation
                 // Each loop should handle one read which is capable of handling any type of packet 
-            switch (packetOpcode(incomingPacket)) {
+            switch (packetOpcode(packetIn)) {
                 case 'F':
-                    {
-                        string incomingString(packetContent(incomingPacket));
-                        // read file given from client and set fileContent to array of file characters 
-                        unsigned char *fileContent;
-                        ssize_t bytesRead = readFile(argv[TARGET_DIR], incomingString, nastiness, &fileContent);
-                        // TODO: Check for -1?
+                {
+                    string fName(packetContent(packetIn));
+                    
+                    // read file from client, set fContent to file data
+                    unsigned char *fContent;
+                    ssize_t fNameLen = readFile(argv[TARGET_DIR], fName, nastiness, &fContent);
 
-                        // Output buffer populated with SHA1 hash
-                        unsigned char obuff[20];
-                        SHA1((const unsigned char *)fileContent, bytesRead, obuff);
-                        
-                        int filenameLength = packetLength(incomingPacket) - 1;
-                        char hashContent[filenameLength + 20];
-
-                        for (int j = 0; j < 20 + filenameLength; j++) {
-                            hashContent[j] = j < 20 ? obuff[j] : packetContent(incomingPacket)[j-20];
-                        }
-
-                        int hashContentLength = 20 + filenameLength;
-                        outgoingPacket = makePacket('H', hashContentLength, hashContent);
-                        // free(fileContent);
-                        
-                        // send hashPacket to client as entire response
-                        // sock -> write((const char *)packetToString(hashPacket), packetLength(hashPacket) + 2);
+                    if (fNameLen == -1) { 
+                        // TODO: Handle negative 1 case? Resend request packet?
+                        cerr << "Error while reading " << fName; 
+                        packetOut = makeHashPacket(packetIn, fContent);
+                    } else {
+                        packetOut = makeHashPacket(packetIn, fContent);
                     }
                     break;
+                }
                 case 'S':
-                    {
-                        // read SUCCESS/FAILURE from client
-                        char *fileName = packetContent(incomingPacket) + 1;
-                        // send acknowledgement to client
-                        outgoingPacket = makePacket('A', strlen(fileName), fileName);
-                        // sock -> write((const char *)packetToString(ackPacket), packetLength(ackPacket) + 2);
-                    }
+                {
+                    // TODO: print to debug (success or failure)
+                    packetOut = makeAckPacket(packetIn);
                     break;
+                }
                 default:
-                    outgoingPacket = makePacket('U', 0, NULL);
+                    packetOut = makePacket('U', 0, NULL);
             }
 
-            cout << packetToString(outgoingPacket) << endl;
-            cout << packetOpcode(outgoingPacket) << endl;
-            cout << packetLength(outgoingPacket) << endl;
-            cout << packetContent(outgoingPacket) << endl;
+            cout << packetToString(packetOut) << endl;
+            cout << packetOpcode(packetOut) << endl;
+            cout << packetLength(packetOut) << endl;
+            cout << packetContent(packetOut) << endl;
             printf("--------------------\n");
 
-            sock -> write((const char *)packetToString(outgoingPacket), packetLength(outgoingPacket) + 2);
-            freePacket(outgoingPacket);
-            freePacket(incomingPacket);
+            sock -> write((const char *)packetToString(packetOut), packetLength(packetOut) + 2);
+            freePacket(packetOut);
+            freePacket(packetIn);
             i++;
         }
             
