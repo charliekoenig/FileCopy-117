@@ -27,19 +27,12 @@ packet makePacket(char opcode, int length, char *content) {
     }
     newPacket->content[length] = '\0';
 
-    // Debug output
-    // printf("Debug: makePacket created packet with length %d\n", newPacket->length);
-    // printf("Debug: Last character of content: %d\n", (int)newPacket->content[length]);
-    // printf("Debug: Null terminator present: %s\n\n", newPacket->content[length] == '\0' ? "Yes" : "No");
-
-
     return newPacket;
 }
 
-// note: cast to unsigned char when converting to integer for lengths
 packet stringToPacket(char *packetString) {
     char opcode = packetString[0];
-    int length = (packetString[1] - '\0') - 3;
+    int length = ((unsigned char)packetString[1] - '\0') - 3;
     char *content = (char *)malloc(length);
 
     for (int i = 2; i < 2 + length; i++) {
@@ -78,13 +71,6 @@ packetToString(packet packet) {
         packetString[i] = content[i - 2];
 
     }
-
-    // Debug output
-    // cout << "P->S: Debug: packetToString created string with length " << length << endl;
-    // cout << "P->S: Debug: Opcode: " << (int)packetString[0] << endl;
-    // cout << "P->S: Debug: Length byte: " << (int)(unsigned char)packetString[1] << endl;
-    // cout << "P->S: Debug: Content: " << string(packetString + 2, length - 2) << endl;
-    // cout << "P->S: Debug: Last character of packet string: " << (int)packetString[length - 1] << endl << endl;
 
     return packetString;
 }
