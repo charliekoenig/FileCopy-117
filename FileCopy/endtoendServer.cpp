@@ -46,39 +46,46 @@ main(int argc, char *argv[]) {
             }    
 
             // convert incoming file check request packet to a string
-            packet filenamePacket = stringToPacket(incoming);
-            // if (packetOpcode(filenamePacket) != 'F') { JUST_ASKING_FOR_FILENAME; }
-            string incomingString(packetContent(filenamePacket));
+            packet incomingPacket = stringToPacket(incoming);
 
-            // read file given from client and set fileContent to array of file characters 
-            unsigned char *fileContent;
-            ssize_t bytesRead = readFile(argv[TARGET_DIR], incomingString, nastiness, &fileContent);
-            // TODO: Check for -1?
+            switch (packetOpcode(incomingPacket)) {
+                case 'F':
+                    {
+                        string incomingString(packetContent(incomingPacket));
+                        // read file given from client and set fileContent to array of file characters 
+                        unsigned char *fileContent;
+                        ssize_t bytesRead = readFile(argv[TARGET_DIR], incomingString, nastiness, &fileContent);
+                        // TODO: Check for -1?
 
-            // Output buffer populated with SHA1 hash
-            unsigned char obuff[20];
-            SHA1((const unsigned char *)fileContent, bytesRead, obuff);
-            
-            int filenameLength = packetLength(filenamePacket) - 1;
-            char hashContent[filenameLength + 20];
+                        // Output buffer populated with SHA1 hash
+                        unsigned char obuff[20];
+                        SHA1((const unsigned char *)fileContent, bytesRead, obuff);
+                        
+                        int filenameLength = packetLength(incomingPacket) - 1;
+                        char hashContent[filenameLength + 20];
 
-            // cout << "65\n";
-            // Temporary: Print hash to terminal
-            for (int j = 0; j < 20 + filenameLength; j++) {
-                // printf("%c", j < 20 ? obuff[j] : packetContent(filenamePacket)[j-20]);
-                // if (j < 20) { printf("%02x", obuff[j]); }
-                hashContent[j] = j < 20 ? obuff[j] : packetContent(filenamePacket)[j-20];
+                        for (int j = 0; j < 20 + filenameLength; j++) {
+                            hashContent[j] = j < 20 ? obuff[j] : packetContent(incomingPacket)[j-20];
+                        }
+
+                        int hashContentLength = 20 + filenameLength;
+                        packet hashPacket = makePacket('H', hashContentLength, hashContent);
+                        // free(fileContent);
+                        
+                        // send hashPacket to client as entire response
+                        sock -> write((const char *)packetToString(hashPacket), packetLength(hashPacket) + 2);
+                    }
+                    break;
+                case 'S':
+                    {
+                        packet ackPacket = makePacket('A', 0, NULL);
+                        sock -> write((const char *)packetToString(ackPacket), packetLength(ackPacket) + 2);
+                    }
+                    break;
+                default:
+                    cout << "unrecognized packet: " << incoming << endl;
             }
-            // cout << "72\n";
 
-            int hashContentLength = 20 + filenameLength;
-            packet hashPacket = makePacket('H', hashContentLength, hashContent);
-            free(fileContent);
-            
-            // send hash to client as entire response
-            // string finalResponse((char *)obuff, 20);
-            sock -> write((const char *)packetToString(hashPacket), packetLength(hashPacket) + 2);
-            
             // TODO: Read SUCCESS/FAILURE from client
                 // sock -> read() (retransmisison or not)
                 // print filename + status

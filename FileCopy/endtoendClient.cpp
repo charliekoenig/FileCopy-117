@@ -45,7 +45,6 @@ main(int argc, char *argv[]) {
     }
 
     char *fileName;
-    ssize_t readLen;
     char incomingMessage[512];
 
     // loop for each file in the given directory
@@ -67,19 +66,13 @@ main(int argc, char *argv[]) {
             sock -> write(packetString, packetLength(diskData) + 2);
             freePacket(diskData);
             // receive computed hash of file in target directory from server
-            readLen = sock -> read(incomingMessage, sizeof(incomingMessage));
+            sock -> read(incomingMessage, sizeof(incomingMessage));
             packet hashFromServer = stringToPacket(incomingMessage);
             // if (packetOpcode(filenamePacket) != 'H') { JUST_ASKING_FOR_HASH; }
-            cout << "endtoendclient: " << packetContent(hashFromServer) << endl;
             unsigned char parsedHash[20];
-            cout << "filenames are matching? " << parseHash(hashFromServer, fileName, parsedHash) << endl;
-            // discard if filenames not matching
-            // for (int j = 0; j < 20; j++) {
-            //     printf("%02x", parsedHash[j]);
-            // }
-            // cout << endl;
-            (void)readLen;
-
+            parseHash(hashFromServer, fileName, parsedHash);
+            // todo: discard if filenames not matching
+            
             // read file content
             unsigned char *fileContent;
             ssize_t bytesRead = readFile(argv[SRC_DIR], fileName, atoi(argv[FILE_NAST_ARG]), &fileContent);
@@ -90,6 +83,19 @@ main(int argc, char *argv[]) {
             SHA1((const unsigned  char *)fileContent, bytesRead, obuff);
 
             free(fileContent);
+
+            // 'S', length, 's''f'filename
+            char statusContent[strlen(fileName) + 1];
+            statusContent[0] = (strncmp((const char *) parsedHash, (const char *) obuff, 20) == 0) ? 'S' : 'F';
+            
+            for (size_t j = 1; j < strlen(fileName) + 1; j++) {
+                statusContent[j] = fileName[j-1];
+            }
+            packet statusPacket = makePacket('S', strlen(fileName) + 1, statusContent);
+            sock -> write(packetToString(statusPacket), packetLength(statusPacket) + 2);
+            sock -> read(incomingMessage, sizeof(incomingMessage));
+            packet ackPacket = stringToPacket(incomingMessage);
+
             printf("--------------------\n");
 
         } catch (C150NetworkException &e) {
@@ -143,11 +149,8 @@ parseHash(packet hashPacket, char *currFilename, unsigned char *parsedHash) {
         }
     }
 
-    cout << "146: " << currFilename    << endl;
-    cout << "147: " << packetsFilename << endl;
-
     // compare filenamepacket with currFilename
     return strcmp((const char *) currFilename, (const char *) packetsFilename) == 0;
 }
 
-// to do for fri: comparing hashes, getting things out of main in both client & server, S & A packets, gradelog & debug prints
+// to do for fri: getting things out of main in both client & server, gradelog & debug prints
