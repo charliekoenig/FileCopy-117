@@ -19,7 +19,6 @@ const int TARGET_DIR       = 3;
 
 int
 main(int argc, char *argv[]) {
-
     GRADEME(argc, argv);
 
     if (argc != 4) {
@@ -27,7 +26,6 @@ main(int argc, char *argv[]) {
              << " <networknastiness> <filenastiness> <targetdir>" << endl;
         exit(1);
     }
-
 
     ssize_t readLen;
     char incoming[512];
@@ -40,14 +38,23 @@ main(int argc, char *argv[]) {
         while(1) {
             readLen = sock -> read(incoming, sizeof(incoming));
             if (readLen == 0) {
-                cerr << "Read zero message on " << i 
-                     << " iteration. Trying again" << endl;
+                cerr << "Empty message on " << i << " iteration. Trying again" << endl;
+                i++;
                 continue;
             }    
 
             // convert incoming file check request packet to a string
             packet incomingPacket = stringToPacket(incoming);
 
+            cout << packetToString(incomingPacket) << endl;
+            cout << packetOpcode(incomingPacket) << endl;
+            cout << packetLength(incomingPacket) << endl;
+            cout << packetContent(incomingPacket) << endl;
+
+            packet outgoingPacket;
+
+            // Should be engineered in a way that allows us to continue loop, no guarantee the next packet is the confirmation
+                // Each loop should handle one read which is capable of handling any type of packet 
             switch (packetOpcode(incomingPacket)) {
                 case 'F':
                     {
@@ -69,30 +76,35 @@ main(int argc, char *argv[]) {
                         }
 
                         int hashContentLength = 20 + filenameLength;
-                        packet hashPacket = makePacket('H', hashContentLength, hashContent);
+                        outgoingPacket = makePacket('H', hashContentLength, hashContent);
                         // free(fileContent);
                         
                         // send hashPacket to client as entire response
-                        sock -> write((const char *)packetToString(hashPacket), packetLength(hashPacket) + 2);
+                        // sock -> write((const char *)packetToString(hashPacket), packetLength(hashPacket) + 2);
                     }
                     break;
                 case 'S':
                     {
+                        // read SUCCESS/FAILURE from client
                         char *fileName = packetContent(incomingPacket) + 1;
-                        packet ackPacket = makePacket('A', strlen(fileName), fileName);
-                        sock -> write((const char *)packetToString(ackPacket), packetLength(ackPacket) + 2);
+                        // send acknowledgement to client
+                        outgoingPacket = makePacket('A', strlen(fileName), fileName);
+                        // sock -> write((const char *)packetToString(ackPacket), packetLength(ackPacket) + 2);
                     }
                     break;
                 default:
-                    cout << "unrecognized packet: " << incoming << endl;
+                    outgoingPacket = makePacket('U', 0, NULL);
             }
 
-            // TODO: Read SUCCESS/FAILURE from client
-                // sock -> read() (retransmisison or not)
-                // print filename + status
-                // send acknoledgement to client
-            // Should be engineered in a way that allows us to continue loop, no guarantee the next packet is the confirmation
-                // Each loop should handle one read which is capable of handling any type of packet 
+            cout << packetToString(outgoingPacket) << endl;
+            cout << packetOpcode(outgoingPacket) << endl;
+            cout << packetLength(outgoingPacket) << endl;
+            cout << packetContent(outgoingPacket) << endl;
+            printf("--------------------\n");
+
+            sock -> write((const char *)packetToString(outgoingPacket), packetLength(outgoingPacket) + 2);
+            freePacket(outgoingPacket);
+            freePacket(incomingPacket);
             i++;
         }
             
