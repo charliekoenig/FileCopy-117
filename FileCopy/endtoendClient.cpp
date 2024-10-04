@@ -95,7 +95,7 @@ main(int argc, char *argv[]) {
             sock -> write(packetToString(statusPacket), packetLength(statusPacket) + 2);
             sock -> read(incomingMessage, sizeof(incomingMessage));
             packet ackPacket = stringToPacket(incomingMessage);
-
+            (void) ackPacket;
             printf("--------------------\n");
 
         } catch (C150NetworkException &e) {

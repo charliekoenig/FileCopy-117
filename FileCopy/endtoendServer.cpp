@@ -78,7 +78,8 @@ main(int argc, char *argv[]) {
                     break;
                 case 'S':
                     {
-                        packet ackPacket = makePacket('A', 0, NULL);
+                        char *fileName = packetContent(incomingPacket) + 1;
+                        packet ackPacket = makePacket('A', strlen(fileName), fileName);
                         sock -> write((const char *)packetToString(ackPacket), packetLength(ackPacket) + 2);
                     }
                     break;
