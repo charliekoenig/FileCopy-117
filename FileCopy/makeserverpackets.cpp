@@ -20,7 +20,7 @@
     * Uses SHA1 function to hash the *fileContent
 ***********************************************************/
 packet 
-makeHashPacket(packet incomingPacket, unsigned char *fileContent) {
+makeHashPacket(packet incomingPacket, unsigned char *fileContent, size_t fContentLen) {
     int fNameLen = packetLength(incomingPacket) - 1;
     int contentLength = 20 + fNameLen;
 
@@ -29,7 +29,7 @@ makeHashPacket(packet incomingPacket, unsigned char *fileContent) {
 
     // Output buffer populated with SHA1 hash
     unsigned char obuff[20];
-    SHA1((const unsigned char *)fileContent, fNameLen, obuff);
+    SHA1((const unsigned char *)fileContent, fContentLen, obuff);
 
     // populate packet content with hash followed by filename
     for (int j = 0; j < contentLength; j++) {

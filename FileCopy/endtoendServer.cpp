@@ -47,47 +47,43 @@ main(int argc, char *argv[]) {
             packet packetIn = stringToPacket(incoming);
             packet packetOut = NULL;
 
-            cout << packetToString(packetIn) << endl;
-            cout << packetOpcode(packetIn) << endl;
-            cout << packetLength(packetIn) << endl;
-            cout << packetContent(packetIn) << endl;
-
-
             // Should be engineered in a way that allows us to continue loop, no guarantee the next packet is the confirmation
                 // Each loop should handle one read which is capable of handling any type of packet 
             switch (packetOpcode(packetIn)) {
                 case 'F':
                 {
                     string fName(packetContent(packetIn));
+                    *GRADING << "File: " << fName << " received, beginning end-to-end check" << endl;
                     
                     // read file from client, set fContent to file data
                     unsigned char *fContent;
-                    ssize_t fNameLen = readFile(argv[TARGET_DIR], fName, nastiness, &fContent);
+                    ssize_t fContentLen = readFile(argv[TARGET_DIR], fName, nastiness, &fContent);
 
-                    if (fNameLen == -1) { 
+                    if (fContentLen == -1) { 
                         // TODO: Handle negative 1 case? Resend request packet?
                         cerr << "Error while reading " << fName; 
-                        packetOut = makeHashPacket(packetIn, fContent);
+                        packetOut = makeHashPacket(packetIn, fContent, fContentLen);
                     } else {
-                        packetOut = makeHashPacket(packetIn, fContent);
+                        packetOut = makeHashPacket(packetIn, fContent, fContentLen);
                     }
+                    
                     break;
                 }
                 case 'S':
                 {
-                    // TODO: print to debug (success or failure)
+                    string fName(packetContent(packetIn) + 1);
+                    if (packetContent(packetIn)[0] == 'S') {
+                        *GRADING << "File: " << fName << " end-to-end check succeeded" << endl;
+                    } else if (packetContent(packetIn)[0] == 'F') {
+                        *GRADING << "File: " << fName << " end-to-end check failed" << endl;
+                    }
+
                     packetOut = makeAckPacket(packetIn);
                     break;
                 }
                 default:
                     packetOut = makePacket('U', 0, NULL);
             }
-
-            cout << packetToString(packetOut) << endl;
-            cout << packetOpcode(packetOut) << endl;
-            cout << packetLength(packetOut) << endl;
-            cout << packetContent(packetOut) << endl;
-            printf("--------------------\n");
 
             sock -> write((const char *)packetToString(packetOut), packetLength(packetOut) + 2);
             freePacket(packetOut);

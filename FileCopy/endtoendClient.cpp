@@ -64,6 +64,9 @@ main(int argc, char *argv[]) {
             char *packetString = packetToString(diskData);
             
             sock -> write(packetString, packetLength(diskData) + 2);
+
+            *GRADING << "File: " << fileName << " transmission complete, waiting for end-to-end check, attempt " << 0 << endl;
+            
             freePacket(diskData);
             // receive computed hash of file in target directory from server
             sock -> read(incomingMessage, sizeof(incomingMessage));
@@ -87,6 +90,12 @@ main(int argc, char *argv[]) {
             // 'S', length, 's''f'filename
             char statusContent[strlen(fileName) + 1];
             statusContent[0] = (strncmp((const char *) parsedHash, (const char *) obuff, 20) == 0) ? 'S' : 'F';
+
+            if (statusContent[0] == 'S') {
+                *GRADING << "File: " << fileName << " end-to-end check succeeded, attempt " << 0 << endl;
+            } else if (statusContent[0] == 'F') {
+                *GRADING << "File: " << fileName << " end-to-end check failed, attempt " << 0 << endl;
+            }
             
             for (size_t j = 1; j < strlen(fileName) + 1; j++) {
                 statusContent[j] = fileName[j-1];
