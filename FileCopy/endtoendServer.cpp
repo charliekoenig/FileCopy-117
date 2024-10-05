@@ -47,8 +47,7 @@ main(int argc, char *argv[]) {
             packet packetIn = stringToPacket(incoming);
             packet packetOut = NULL;
 
-            // Should be engineered in a way that allows us to continue loop, no guarantee the next packet is the confirmation
-                // Each loop should handle one read which is capable of handling any type of packet 
+            // handles one read which is capable of handling any type of packet 
             switch (packetOpcode(packetIn)) {
                 case 'F':
                 {
@@ -60,9 +59,8 @@ main(int argc, char *argv[]) {
                     ssize_t fContentLen = readFile(argv[TARGET_DIR], fName, nastiness, &fContent);
 
                     if (fContentLen == -1) { 
-                        // TODO: Handle negative 1 case? Resend request packet?
-                        cerr << "Error while reading " << fName; 
-                        packetOut = makeHashPacket(packetIn, fContent, fContentLen);
+                        // TODO: Handle -> Resend request packet? -> error cases in readFile
+                        cerr << "Error while reading " << fName << endl; 
                     } else {
                         packetOut = makeHashPacket(packetIn, fContent, fContentLen);
                     }
@@ -92,7 +90,6 @@ main(int argc, char *argv[]) {
         }
             
     } catch (C150NetworkException &e) {
-        // In case we're logging to a file, write to the console too
         cerr << argv[0] << ": caught C150NetworkException: " << e.formattedExplanation() << endl;
     }
 

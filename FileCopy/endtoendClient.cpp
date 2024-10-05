@@ -79,7 +79,7 @@ main(int argc, char *argv[]) {
             // read file content
             unsigned char *fileContent;
             ssize_t bytesRead = readFile(argv[SRC_DIR], fileName, atoi(argv[FILE_NAST_ARG]), &fileContent);
-            // TODO: Check for -1?
+            // TODO: error handling in readFile
 
             // compute hash for file in source directory
             unsigned char obuff[20];
@@ -87,7 +87,7 @@ main(int argc, char *argv[]) {
 
             free(fileContent);
 
-            // 'S', length, 's''f'filename
+            // set status as success or failure based on hash comparison
             char statusContent[strlen(fileName) + 1];
             statusContent[0] = (strncmp((const char *) parsedHash, (const char *) obuff, 20) == 0) ? 'S' : 'F';
 
@@ -100,15 +100,19 @@ main(int argc, char *argv[]) {
             for (size_t j = 1; j < strlen(fileName) + 1; j++) {
                 statusContent[j] = fileName[j-1];
             }
+
             packet statusPacket = makePacket('S', strlen(fileName) + 1, statusContent);
             sock -> write(packetToString(statusPacket), packetLength(statusPacket) + 2);
+
+            // read acknowledgement packet from server
             sock -> read(incomingMessage, sizeof(incomingMessage));
             packet ackPacket = stringToPacket(incomingMessage);
+            
+            // todo: make sure filenames match
             (void) ackPacket;
             printf("--------------------\n");
 
         } catch (C150NetworkException &e) {
-            // write error to console
             cerr << argv[0] << ": caught C150NetworkException: " << e.formattedExplanation() << endl;
         }
     }
