@@ -1,0 +1,57 @@
+For all packets that will be sent between the client and server, the following fields will be present:
+        - char opcode  -> the type of packet
+        - int  length  -> length of the content
+        - int  index   -> index number of the packet (unique id)
+        - char content -> content
+The content field may be further parsed in order to reveal more information for specific types of packets.
+
+Different opcodes will have different ways to parse the content
+ opcode |   use   |                       content
+-----------------------------------------------------------------------------
+    C   |  C -> S |                  filename + total bytes
+    R   |  S -> C |                   C + acknowledgement
+    B   |  C -> S | byte offset + filename length + filename + file contents
+    R   |  S -> C |                   B + acknowledgement
+    F   |  C -> S |                  filename to be checked
+    H   |  S -> C |              filename + file contents' hash
+    S   |  C -> S |         S for success / F for failure + filename
+    A   |  S -> C |                         filename
+
+fileCopyClient.cpp
+-------------------
+        - sends a C packet for the file in a SRC directory
+        - after receiving an R file, loops through the contents of the current file being copied
+                and sends a B packet for each 509 bytes
+                - receives an R file for each B packet
+        - sends an F packet so the server can begin the endtoend check
+        - after receiving an H packet, compares hash received from server with hash computed by itself
+                and sends the appropriate S packet
+        - after receiving an A packet, goes back to step 1 for the next file in directory, 
+                or exits if there are no files left in the directory
+
+fileCopyServer.cpp
+-------------------
+        - when receiving a C packet
+                * creates a new file with the extension .TMP
+                * mallocs totalBytes space to hold the contents of the file
+                * sets variable currFileName to the filename
+                * send the R packet
+        - when receiving the B packet(s)
+                * updates the malloc'd space in the specified offset with the received contents
+                * sends the R packet(s)
+        - when receiving an F packet
+                * computes hash of the malloc'd contents
+                * writes contents to the .TMP file
+                * reads from the .TMP file to compute hash
+                * (makes sure that hash of malloc'd contents is the same with that of the file that was just written to)
+                * sends the H packet
+        - when receiving an S packet
+                * deletes or renames file with .TMP extension in the way that it reflects the status of the endtoend check
+                * sends the A packet
+
+notes:
+ * fileCopyServer will check the index of the packet for each packet it receives to make sure the next expected packet is received.
+ * if fileCopyServer receives a packet for a file that has a name other than the one that currentfilename stores, it discards them.
+        * if it is of type S: it will check and send the A packet for that file. 
+                              if the necessary action has not been taken yet, 
+                                 it will delete or rename the existing .TMP file before sending the A packet.
