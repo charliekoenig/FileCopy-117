@@ -46,32 +46,119 @@ main(int argc, char *argv[]) {
 
     char *fileName;
     char incomingMessage[512];
+    int packetNumber = 0;
+    packet response;
 
-    // loop for each file in the given directory
-    while ((sourceFile = readdir(SRC)) != NULL) {
-        fileName = sourceFile -> d_name;
-        // skip the . and .. names
-        if ((strcmp(fileName, ".") == 0) || (strcmp(fileName, "..")  == 0 )) 
-            continue;          // never copy . or ..
+    // TODO: clean this up
+    try {
+        C150DgmSocket *sock = new C150DgmSocket();
+        sock -> setServerName(argv[SERVER_ARG]);
+        sock -> turnOnTimeouts(3000);
 
-        try { 
-            C150DgmSocket *sock = new C150DgmSocket();
-            sock -> setServerName(argv[SERVER_ARG]);
+        // loop for each file in the given directory
+        while ((sourceFile = readdir(SRC)) != NULL) {
+            fileName = sourceFile -> d_name;
+            // skip the . and .. names
+            if ((strcmp(fileName, ".") == 0) || (strcmp(fileName, "..")  == 0 )) 
+                continue;
+
+            bool noResponse = sock -> timedout();
+            bool unexpectedPacket = true;
 
             printf("FILENAME: %s\n", fileName);
             
-            packet diskData = makePacket('F', strlen(fileName), fileName);
+            // create packet and write to server
+            packet diskData = makePacket('F', strlen(fileName), packetNumber, fileName);
             char *packetString = packetToString(diskData);
-            
-            sock -> write(packetString, packetLength(diskData) + 2);
-
-            *GRADING << "File: " << fileName << " transmission complete, waiting for end-to-end check, attempt " << 0 << endl;
-            
+            int packetLen = packetLength(diskData) + 3;
             freePacket(diskData);
+
+            int attempts = 0;
+            while (noResponse || unexpectedPacket) {
+                sock -> write(packetString, packetLen);
+                *GRADING << "File: " << fileName << " transmission complete, waiting for end-to-end check, attempt " << attempts << endl;
+
+                sock -> read(incomingMessage, sizeof(incomingMessage));
+                noResponse = sock -> timedout();
+
+                if (!noResponse) {
+                    response = stringToPacket(incomingMessage);
+                    unexpectedPacket = (packetOpcode(response) != 'H' ||
+                                        packetNum(response) != packetNumber);
+                }
+                
+                attempts++; 
+            }
+            printf("Hash Response: ");
+            packetNumber = (packetNumber == 255) ? 0 : (packetNumber + 1);
+
+            unsigned char parsedHash[20];
+            parseHash(response, fileName, parsedHash);
+            for (int k = 0; k < 20; k++) {
+                printf("%02x", parsedHash[k]);
+            }
+            cout << endl;
+
+            unsigned char *fileContent;
+            ssize_t bytesRead = readFile(argv[SRC_DIR], fileName, atoi(argv[FILE_NAST_ARG]), &fileContent);
+            
+            unsigned char obuff[20];
+            SHA1((const unsigned  char *)fileContent, bytesRead, obuff);
+            free(fileContent);
+            printf("Client Hash: ");
+            for (int k = 0; k < 20; k++) {
+                printf("%02x", obuff[k]);
+            }
+            cout << endl;
+
+            char statusContent[strlen(fileName) + 1];
+            statusContent[0] = (strncmp((const char *) parsedHash, (const char *) obuff, 20) == 0) ? 'S' : 'F';
+            
+            for (size_t j = 1; j < strlen(fileName) + 1; j++) {
+                statusContent[j] = fileName[j-1];
+            }
+
+            packet statusPacket = makePacket('S', strlen(fileName) + 1, packetNumber, statusContent);
+            packetString = packetToString(statusPacket);
+            packetLen = packetLength(statusPacket) + 3;
+            freePacket(statusPacket);
+
+            attempts = 0;
+            noResponse = true, unexpectedPacket = true;
+
+            while (noResponse || unexpectedPacket) {
+                if (statusContent[0] == 'S') {
+                    cout << "SUCCESS: " << fileName << endl;
+                    *GRADING << "File: " << fileName << " end-to-end check succeeded, attempt " << attempts << endl;
+                } else if (statusContent[0] == 'F') {
+                    cout << "FAILURE: " << fileName << endl;
+                    *GRADING << "File: " << fileName << " end-to-end check failed, attempt " << attempts << endl;
+                }
+
+                sock -> write(packetString, packetLen);
+
+                sock -> read(incomingMessage, sizeof(incomingMessage));
+                noResponse = sock -> timedout();
+
+                if (!noResponse) {
+                    response = stringToPacket(incomingMessage);
+                    unexpectedPacket = (packetOpcode(response) != 'A' ||
+                                        packetNum(response) != packetNumber);
+                }
+                attempts++; 
+            }
+            printf("Ack Response: %s\n", packetContent(response));
+            cout << "_______________________________" << endl;
+            packetNumber = (packetNumber == 255) ? 0 : (packetNumber + 1);
+
+            /*
             // receive computed hash of file in target directory from server
             sock -> read(incomingMessage, sizeof(incomingMessage));
+
             packet hashFromServer = stringToPacket(incomingMessage);
             // if (packetOpcode(filenamePacket) != 'H') { JUST_ASKING_FOR_HASH; }
+            
+
             unsigned char parsedHash[20];
             parseHash(hashFromServer, fileName, parsedHash);
             // todo: discard if filenames not matching
@@ -80,7 +167,6 @@ main(int argc, char *argv[]) {
             unsigned char *fileContent;
             ssize_t bytesRead = readFile(argv[SRC_DIR], fileName, atoi(argv[FILE_NAST_ARG]), &fileContent);
             // TODO: error handling in readFile
-
             // compute hash for file in source directory
             unsigned char obuff[20];
             SHA1((const unsigned  char *)fileContent, bytesRead, obuff);
@@ -102,7 +188,8 @@ main(int argc, char *argv[]) {
             }
 
             packet statusPacket = makePacket('S', strlen(fileName) + 1, statusContent);
-            sock -> write(packetToString(statusPacket), packetLength(statusPacket) + 2);
+            
+            sock -> write(packetToString(statusPacket), packetLength(statusPacket) + 3);
 
             // read acknowledgement packet from server
             sock -> read(incomingMessage, sizeof(incomingMessage));
@@ -110,11 +197,11 @@ main(int argc, char *argv[]) {
             
             // todo: make sure filenames match
             (void) ackPacket;
+            */
             printf("--------------------\n");
-
-        } catch (C150NetworkException &e) {
-            cerr << argv[0] << ": caught C150NetworkException: " << e.formattedExplanation() << endl;
         }
+    } catch (C150NetworkException &e) {
+        cerr << argv[0] << ": caught C150NetworkException: " << e.formattedExplanation() << endl;
     }
 
     closedir(SRC);

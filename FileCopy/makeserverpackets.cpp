@@ -23,6 +23,7 @@ packet
 makeHashPacket(packet incomingPacket, unsigned char *fileContent, size_t fContentLen) {
     int fNameLen = packetLength(incomingPacket) - 1;
     int contentLength = 20 + fNameLen;
+    int packetNumber = packetNum(incomingPacket);
 
     char outgoingContent[contentLength];
     char *incomingConent = packetContent(incomingPacket);
@@ -37,7 +38,7 @@ makeHashPacket(packet incomingPacket, unsigned char *fileContent, size_t fConten
     }
 
     // return a hash packet
-    return makePacket('H', contentLength, outgoingContent);
+    return makePacket('H', contentLength, packetNumber, outgoingContent);
 }
 
 /**********************************************************
@@ -56,5 +57,7 @@ makeHashPacket(packet incomingPacket, unsigned char *fileContent, size_t fConten
 packet 
 makeAckPacket(packet incomingPacket) {
     char *fileName = packetContent(incomingPacket) + 1;
-    return makePacket('A', strlen(fileName), fileName);
+    int packetNumber = packetNum(incomingPacket);
+
+    return makePacket('A', strlen(fileName), packetNumber, fileName);
 }

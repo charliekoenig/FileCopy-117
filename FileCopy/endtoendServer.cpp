@@ -29,12 +29,13 @@ main(int argc, char *argv[]) {
 
     ssize_t readLen;
     char incoming[512];
-    int nastiness = atoi(argv[NETWORK_NAST_ARG]);
+    int serverNastiness = atoi(argv[NETWORK_NAST_ARG]);
+    int fileNastiness   = atoi(argv[FILE_NAST_ARG]);
 
     int i = 0;
     try {
-        C150DgmSocket *sock = new C150NastyDgmSocket(nastiness);
-
+        C150DgmSocket *sock = new C150NastyDgmSocket(serverNastiness);
+        unsigned char *fContent;
         while(1) {
             readLen = sock -> read(incoming, sizeof(incoming));
             if (readLen == 0) {
@@ -55,8 +56,8 @@ main(int argc, char *argv[]) {
                     *GRADING << "File: " << fName << " received, beginning end-to-end check" << endl;
                     
                     // read file from client, set fContent to file data
-                    unsigned char *fContent;
-                    ssize_t fContentLen = readFile(argv[TARGET_DIR], fName, nastiness, &fContent);
+                    // unsigned char *fContent;
+                    ssize_t fContentLen = readFile(argv[TARGET_DIR], fName, fileNastiness, &fContent);
 
                     if (fContentLen == -1) { 
                         // TODO: Handle -> Resend request packet? -> error cases in readFile
@@ -72,15 +73,24 @@ main(int argc, char *argv[]) {
                     string fName(packetContent(packetIn) + 1);
                     if (packetContent(packetIn)[0] == 'S') {
                         *GRADING << "File: " << fName << " end-to-end check succeeded" << endl;
+                        if (fContent != NULL) {
+                            free(fContent);
+                            fContent = NULL;
+                        }
                     } else if (packetContent(packetIn)[0] == 'F') {
                         *GRADING << "File: " << fName << " end-to-end check failed" << endl;
+                        printf("%s", fContent);
+                        if (fContent != NULL) {
+                            free(fContent);
+                            fContent = NULL;
+                        }
                     }
 
                     packetOut = makeAckPacket(packetIn);
                     break;
                 }
                 default:
-                    packetOut = makePacket('U', 0, NULL);
+                    packetOut = makePacket('U', 0, 255, NULL);
             }
 
             sock -> write((const char *)packetToString(packetOut), packetLength(packetOut) + 2);
