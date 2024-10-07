@@ -1,3 +1,5 @@
+Design & Submission by: ckoeni01 & akolab01
+
 For all packets that will be sent between the client and server, the following fields will be present:
         - char opcode  -> the type of packet
         - int  length  -> length of the content
