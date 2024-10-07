@@ -43,7 +43,7 @@ C150AR = $(C150LIB)c150ids.a
 LDFLAGS = 
 INCLUDES = $(C150LIB)c150dgmsocket.h $(C150LIB)c150nastydgmsocket.h $(C150LIB)c150network.h $(C150LIB)c150exceptions.h $(C150LIB)c150debug.h $(C150LIB)c150utility.h
 
-all: nastyfiletest makedatafile sha1test endtoendclient endtoendserver
+all: nastyfiletest makedatafile sha1test endtoendclient endtoendserver filecopyclient filecopyserver
 
 
 #
@@ -57,6 +57,18 @@ endtoendclient: endtoendClient.cpp nastyfileops.cpp packetstruct.cpp $(C150AR) $
 #
 endtoendserver: endtoendServer.cpp nastyfileops.cpp packetstruct.cpp makeserverpackets.cpp $(C150AR) $(INCLUDES)
 	$(CPP) -o endtoendserver  $(CPPFLAGS) endtoendServer.cpp nastyfileops.cpp packetstruct.cpp makeserverpackets.cpp $(C150AR) -lssl -lcrypto
+
+#
+# Build the filecopyclient
+#
+filecopyclient: fileCopyClient.cpp nastyfileops.cpp packetstruct.cpp $(C150AR) $(INCLUDES)
+	$(CPP) -o filecopyclient  $(CPPFLAGS) fileCopyClient.cpp nastyfileops.cpp packetstruct.cpp $(C150AR) -lssl -lcrypto
+
+#
+# Build the filecopyserver
+#
+filecopyserver: fileCopyServer.cpp nastyfileops.cpp packetstruct.cpp makeserverpackets.cpp $(C150AR) $(INCLUDES)
+	$(CPP) -o filecopyserver  $(CPPFLAGS) fileCopyServer.cpp nastyfileops.cpp packetstruct.cpp makeserverpackets.cpp $(C150AR) -lssl -lcrypto
 
 #
 # Build the nastyfiletest sample
@@ -88,6 +100,6 @@ makedatafile: makedatafile.cpp
 # for forcing complete rebuild#
 
 clean:
-	rm -f endtoendclient endtoendserver nastyfiletest sha1test makedatafile *.o GRADE*
+	rm -f endtoendclient endtoendserver nastyfiletest sha1test makedatafile filecopyclient filecopyserver *.o GRADE*
 
 

@@ -65,6 +65,25 @@ packetOpcode(packet packet) {
     return packet->opcode;
 }
 
+ssize_t
+parseCPacket(packet packet, char **fileName) {
+    ssize_t unpackedLen = 0;
+    *fileName = (char *)malloc(packetLength(packet) - sizeof(ssize_t) + 1);
+    for (int i = 0; i < packetLength(packet); i++) {
+        if ((unsigned) i < sizeof(ssize_t)) {
+            unpackedLen = (unpackedLen << 8) + (ssize_t)(packetContent(packet)[i]);
+        } else {
+            (*fileName)[(unsigned) i - sizeof(ssize_t)] = packetContent(packet)[i];
+        }
+    }
+
+    (*fileName)[packetLength(packet) - sizeof(ssize_t)] = '\0';
+
+    printf("bytesRead: %ld\n", unpackedLen);
+
+    return unpackedLen;
+}
+
 char *
 packetToString(packet packet) {
     int length = packetLength(packet) + 3;
