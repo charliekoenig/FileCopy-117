@@ -81,8 +81,7 @@ main(int argc, char *argv[]) {
                     break;
                 }
                 default:
-                    cout << packetToString(packetIn) << endl;
-                    
+                    printPacket(packetIn);          
                     packetOut = makePacket('U', 0, packetNum(packetIn), NULL);
             }
 

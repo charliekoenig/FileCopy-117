@@ -72,7 +72,6 @@ main(int argc, char *argv[]) {
 
             char *packetString = packetToString(diskData);
             int packetLen = packetLength(diskData);
-            printf("Packet num %d sent with length %d\n", packetNum(diskData), packetLength(diskData));
 
             freePacket(diskData);
 
@@ -86,7 +85,6 @@ main(int argc, char *argv[]) {
 
                 if (!noResponse) {
                     response = stringToPacket(incomingMessage);
-                    cout << "Response opcode: " << packetOpcode(response) << endl;
                     unexpectedPacket = (packetOpcode(response) != 'H' ||
                                         packetNum(response) != packetNumber);
                 }
@@ -95,15 +93,10 @@ main(int argc, char *argv[]) {
             }
             
 
-            printf("Hash Response: ");
             packetNumber = (packetNumber == 255) ? 0 : (packetNumber + 1);
 
             unsigned char parsedHash[20];
             parseHash(response, fileName, parsedHash);
-            for (int k = 0; k < 20; k++) {
-                printf("%02x", parsedHash[k]);
-            }
-            cout << endl;
 
             unsigned char *fileContent;
             ssize_t bytesRead = readFile(argv[SRC_DIR], fileName, atoi(argv[FILE_NAST_ARG]), &fileContent);
@@ -111,11 +104,6 @@ main(int argc, char *argv[]) {
             unsigned char obuff[20];
             SHA1((const unsigned  char *)fileContent, bytesRead, obuff);
             free(fileContent);
-            printf("Client Hash: ");
-            for (int k = 0; k < 20; k++) {
-                printf("%02x", obuff[k]);
-            }
-            cout << endl;
 
             char statusContent[strlen(fileName) + 1];
             statusContent[0] = (strncmp((const char *) parsedHash, (const char *) obuff, 20) == 0) ? 'S' : 'F';
@@ -152,8 +140,6 @@ main(int argc, char *argv[]) {
                 }
                 attempts++; 
             }
-            printf("Ack Response: %s\n", packetContent(response));
-            cout << "_______________________________" << endl;
             packetNumber = (packetNumber == 255) ? 0 : (packetNumber + 1);
 
             /*

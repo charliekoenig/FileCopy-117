@@ -45,7 +45,6 @@ main(int argc, char *argv[]) {
 
             // convert incoming file check request packet to a string
             packet packetIn = stringToPacket(incoming);
-            printf("Packet num %d recieved with length %d\n", packetNum(packetIn), packetLength(packetIn));
             packet packetOut = NULL;
 
             // handles one read which is capable of handling any type of packet 

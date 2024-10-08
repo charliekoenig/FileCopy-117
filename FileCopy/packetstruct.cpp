@@ -82,8 +82,6 @@ parseCPacket(packet packet, char **fileName) {
 
     (*fileName)[contentLength - sizeof(ssize_t)] = '\0';
 
-    printf("bytesRead: %ld\n", unpackedLen);
-
     return unpackedLen;
 }
 
@@ -123,36 +121,33 @@ packetCompare(packet p1, packet p2) {
 
 
     if ((memcmp(packetContent(p1), packetContent(p2), p1Len - 4) != 0)) {
-        cout << "Cotent Wrong\n";
+        cout << "Content Wrong\n";
         return false;
     }
 
     return true;
 }
 
+void
+printContent(packet packet) {
+    int contentLength = packetLength(packet) - 5;
+    for (int i = 0; i < contentLength; i++) {
+        printf("%c", packetContent(packet)[i]);
+    }
+    cout << endl;
+}
+
+void
+printPacket(packet packet) {
+    printf("PACKET CONTENTS\n");
+    cout << packetOpcode(packet) << endl;
+    printf("%d\n", packetLength(packet));
+    printf("%d\n", packetNum(packet));
+    printContent(packet);
+    cout << "_________________________" << endl; 
+}
 
 void freePacket(packet packet) {
     free(packet->content);
     free(packet);
 }
-
-/*
-char *
-packetContent(packet packet) {
-    return packet->content;
-}
-
-int  
-packetLength(packet packet) {
-    return packet->length;
-}
-
-int  
-packetNum(packet packet) {
-    return packet->packetNum;
-}
-
-char 
-packetOpcode(packet packet) {
-    return packet->opcode;
-}*/

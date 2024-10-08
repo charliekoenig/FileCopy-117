@@ -18,5 +18,7 @@ char *packetToString(packet packet);
 void freePacket(packet packet);
 
 bool packetCompare(packet p1, packet p2);
+void printContent(packet packet);
+void printPacket(packet packet);
 
 #endif
