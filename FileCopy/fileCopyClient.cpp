@@ -70,19 +70,19 @@ main(int argc, char *argv[]) {
             // get file information
             unsigned char *fileContent;
             ssize_t bytesRead = readFile(argv[SRC_DIR], fileName, atoi(argv[FILE_NAST_ARG]), &fileContent);
-            unsigned int bytesReadCharsLen = sizeof(bytesRead);
-            unsigned char bytesReadChars[bytesReadCharsLen];
-            for (unsigned int offset = 0; offset < bytesReadCharsLen; offset++) {
-                bytesReadChars[bytesReadCharsLen - 1 - offset] = ((bytesRead >> (offset * 8)) & ~0);
+            unsigned int bytesReadSize = sizeof(bytesRead);
+            unsigned char bytesReadCharRep[bytesReadSize];
+            for (unsigned int offset = 0; offset < bytesReadSize; offset++) {
+                bytesReadCharRep[bytesReadSize - 1 - offset] = ((bytesRead >> (offset * 8)) & ~0);
             }
 
-            int cContentLen = strlen(fileName) + bytesReadCharsLen;
+            int cContentLen = strlen(fileName) + bytesReadSize;
             char cContent[cContentLen];
             for (int k = 0; k < cContentLen; k++) {
-                if (k < (int) bytesReadCharsLen) {
-                    cContent[k] = bytesReadChars[k];
+                if (k < (int) bytesReadSize) {
+                    cContent[k] = bytesReadCharRep[k];
                 } else {
-                    cContent[k] = fileName[k - (int) bytesReadCharsLen];
+                    cContent[k] = fileName[k - (int) bytesReadSize];
                 }
             }
 

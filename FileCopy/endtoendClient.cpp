@@ -125,7 +125,6 @@ main(int argc, char *argv[]) {
 
             attempts = 0;
             noResponse = true, unexpectedPacket = true;
-
             while (noResponse || unexpectedPacket) {
                 if (statusContent[0] == 'S') {
                     cout << "SUCCESS: " << fileName << endl;
