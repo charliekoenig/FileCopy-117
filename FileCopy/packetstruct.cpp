@@ -15,35 +15,36 @@ struct packetStruct {
     char *content;
 };
 
-packet makePacket(char opcode, int length, int packetNum, char *content) {
+packet makePacket(char opcode, int contentLength, int packetNum, char *content) {
     packet newPacket = (packet)malloc(sizeof(*newPacket));
 
     newPacket->opcode = opcode;
-    newPacket->length = length + 1;
+    newPacket->length = contentLength + 5;
     newPacket->packetNum = packetNum;
 
-    newPacket->content = (char *)malloc(length + 1);
+    newPacket->content = (char *)malloc(contentLength + 1);
 
-    for (int i = 0; i < length; i++) {
+    for (int i = 0; i < contentLength; i++) {
         newPacket->content[i] = content[i];
     }
-    newPacket->content[length] = '\0';
+    newPacket->content[contentLength] = '\0';
 
     return newPacket;
 }
 
 packet stringToPacket(char *packetString) {
     char opcode = packetString[0];
-    int length = (((unsigned char)packetString[1] << 8) + (unsigned char)packetString[2]) - 5;
+    int contentLength = (((unsigned char)packetString[1] << 8) + (unsigned char)packetString[2]) - 5;
 
-    char *content = (char *)malloc(length);
+    // should be array not malloc'd
+    char *content = (char *)malloc(contentLength);
     int packetNum = ((unsigned char)packetString[3] - '\0');
 
-    for (int i = 4; i < 4 + length; i++) {
+    for (int i = 4; i < (contentLength + 4); i++) {
         content[i - 4] = packetString[i];
     }
 
-    return makePacket(opcode, length, packetNum, content);
+    return makePacket(opcode, contentLength, packetNum, content);
 }
 
 char *
@@ -69,8 +70,9 @@ packetOpcode(packet packet) {
 ssize_t
 parseCPacket(packet packet, char **fileName) {
     ssize_t unpackedLen = 0;
-    *fileName = (char *)malloc(packetLength(packet) - sizeof(ssize_t) + 1);
-    for (int i = 0; i < packetLength(packet); i++) {
+    int contentLength = packetLength(packet) - 4;
+    *fileName = (char *)malloc(contentLength - sizeof(ssize_t));
+    for (int i = 0; i < contentLength; i++) {
         if ((unsigned) i < sizeof(ssize_t)) {
             unpackedLen = (unpackedLen << 8) + (ssize_t)(packetContent(packet)[i]);
         } else {
@@ -78,7 +80,7 @@ parseCPacket(packet packet, char **fileName) {
         }
     }
 
-    (*fileName)[packetLength(packet) - sizeof(ssize_t)] = '\0';
+    (*fileName)[contentLength - sizeof(ssize_t)] = '\0';
 
     printf("bytesRead: %ld\n", unpackedLen);
 
@@ -87,7 +89,7 @@ parseCPacket(packet packet, char **fileName) {
 
 char *
 packetToString(packet packet) {
-    int length = packetLength(packet) + 4;
+    int length = packetLength(packet);
     char *packetString = (char *)malloc(length);
     
     packetString[0] = packetOpcode(packet);

@@ -71,7 +71,7 @@ main(int argc, char *argv[]) {
             packet diskData = makePacket('F', strlen(fileName), packetNumber, fileName);
 
             char *packetString = packetToString(diskData);
-            int packetLen = packetLength(diskData) + 4;
+            int packetLen = packetLength(diskData);
             printf("Packet num %d sent with length %d\n", packetNum(diskData), packetLength(diskData));
 
             freePacket(diskData);
@@ -126,7 +126,7 @@ main(int argc, char *argv[]) {
 
             packet statusPacket = makePacket('S', strlen(fileName) + 1, packetNumber, statusContent);
             packetString = packetToString(statusPacket);
-            packetLen = packetLength(statusPacket) + 4;
+            packetLen = packetLength(statusPacket);
             freePacket(statusPacket);
 
             attempts = 0;

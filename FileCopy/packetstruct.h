@@ -5,7 +5,7 @@
 
 typedef struct packetStruct *packet;
 
-packet makePacket(char opcode, int packetLength, int packetNum, char *content);
+packet makePacket(char opcode, int contentLength, int packetNum, char *content);
 packet stringToPacket(char *packetString);
 
 char *packetContent(packet packet);

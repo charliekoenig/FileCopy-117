@@ -85,7 +85,7 @@ main(int argc, char *argv[]) {
                     packetOut = makePacket('U', 0, 255, NULL);
             }
 
-            sock -> write((const char *)packetToString(packetOut), packetLength(packetOut) + 4);
+            sock -> write((const char *)packetToString(packetOut), packetLength(packetOut));
             freePacket(packetOut);
             freePacket(packetIn);
             i++;
