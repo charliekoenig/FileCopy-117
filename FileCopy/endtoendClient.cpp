@@ -69,8 +69,11 @@ main(int argc, char *argv[]) {
             
             // create packet and write to server
             packet diskData = makePacket('F', strlen(fileName), packetNumber, fileName);
+
             char *packetString = packetToString(diskData);
-            int packetLen = packetLength(diskData) + 3;
+            int packetLen = packetLength(diskData) + 4;
+            printf("Packet num %d sent with length %d\n", packetNum(diskData), packetLength(diskData));
+
             freePacket(diskData);
 
             int attempts = 0;
@@ -83,12 +86,15 @@ main(int argc, char *argv[]) {
 
                 if (!noResponse) {
                     response = stringToPacket(incomingMessage);
+                    cout << "Response opcode: " << packetOpcode(response) << endl;
                     unexpectedPacket = (packetOpcode(response) != 'H' ||
                                         packetNum(response) != packetNumber);
                 }
                 
                 attempts++; 
             }
+            
+
             printf("Hash Response: ");
             packetNumber = (packetNumber == 255) ? 0 : (packetNumber + 1);
 
@@ -120,7 +126,7 @@ main(int argc, char *argv[]) {
 
             packet statusPacket = makePacket('S', strlen(fileName) + 1, packetNumber, statusContent);
             packetString = packetToString(statusPacket);
-            packetLen = packetLength(statusPacket) + 3;
+            packetLen = packetLength(statusPacket) + 4;
             freePacket(statusPacket);
 
             attempts = 0;
@@ -238,7 +244,7 @@ checkDirectory(char *dirname) {
 bool
 parseHash(packet hashPacket, char *currFilename, unsigned char *parsedHash) {
     // parse hashPacket's packetContent and store first 20 in hash and rest in filenamePacket
-    char packetsFilename[packetLength(hashPacket) - 2 - 20];
+    char packetsFilename[packetLength(hashPacket) - 3 - 20];
     for (int i = 0; i < packetLength(hashPacket); i++) {
         if (i < 20) {
             // update parsedHash with hash that we parse from hashPacket's packetContent

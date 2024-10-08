@@ -3,7 +3,7 @@
 #include <cstring>
 
 packet 
-makeCPacket(ssize_t fileLen, char *filename, int packetNumber) {
+makeCopyPacket(ssize_t fileLen, char *filename, int packetNumber) {
     int bytes = sizeof(fileLen);
     int contentLen = strlen(filename) + bytes;
     char content[contentLen];
@@ -20,11 +20,10 @@ makeCPacket(ssize_t fileLen, char *filename, int packetNumber) {
 }
 
 packet 
-makeSPacket(char *serverHash, char *clientHash, char *filename, int packetNum) {
+makeStatusPacket(char *serverHash, char *clientHash, char *filename, int packetNum) {
     int contentLength = strlen(filename) + 1;
     char content[contentLength];
 
-    // use memcmp in case of null char in hash
     content[0] = (memcmp(serverHash, clientHash, 20) == 0) ? 'S' : 'F';
     for (int index = 1; index < contentLength; index++) {
         statusContent[index] = filename[index - 1];
@@ -34,6 +33,6 @@ makeSPacket(char *serverHash, char *clientHash, char *filename, int packetNum) {
 }
 
 packet 
-makeFPacket(char *filename, int packetNumber) {
+makeFilecheckPacket(char *filename, int packetNumber) {
     return makePacket('F', strlen(filename), packetNumber, filename);
 }

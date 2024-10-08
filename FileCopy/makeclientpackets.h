@@ -1,6 +1,5 @@
 #include "packetstruct.h"
 
-packet makeCPacket(ssize_t FileLen, char *fileName, int packetNumber);
-packet makeSPacket(char *serverHash, char *clientHash, char *filename, int packetNum);
-    //char *fileName, int packetNumber);
-packet makeFPacket(char *filename, int packetNumber);
+packet makeCopyPacket(ssize_t FileLen, char *filename, int packetNumber);
+packet makeStatusPacket(char *serverHash, char *clientHash, char *filename, int packetNum);
+packet makeFileCheckPacket(char *filename, int packetNumber);

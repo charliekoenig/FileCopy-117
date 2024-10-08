@@ -45,6 +45,7 @@ main(int argc, char *argv[]) {
 
             // convert incoming file check request packet to a string
             packet packetIn = stringToPacket(incoming);
+            printf("Packet num %d recieved with length %d\n", packetNum(packetIn), packetLength(packetIn));
             packet packetOut = NULL;
 
             // handles one read which is capable of handling any type of packet 
@@ -84,7 +85,7 @@ main(int argc, char *argv[]) {
                     packetOut = makePacket('U', 0, 255, NULL);
             }
 
-            sock -> write((const char *)packetToString(packetOut), packetLength(packetOut) + 2);
+            sock -> write((const char *)packetToString(packetOut), packetLength(packetOut) + 4);
             freePacket(packetOut);
             freePacket(packetIn);
             i++;

@@ -34,12 +34,13 @@ packet makePacket(char opcode, int length, int packetNum, char *content) {
 
 packet stringToPacket(char *packetString) {
     char opcode = packetString[0];
-    int length = ((unsigned char)packetString[1] - '\0') - 4;
-    char *content = (char *)malloc(length);
-    int packetNum = ((unsigned char)packetString[2] - '\0');
+    int length = (((unsigned char)packetString[1] << 8) + (unsigned char)packetString[2]) - 5;
 
-    for (int i = 3; i < 3 + length; i++) {
-        content[i - 3] = packetString[i];
+    char *content = (char *)malloc(length);
+    int packetNum = ((unsigned char)packetString[3] - '\0');
+
+    for (int i = 4; i < 4 + length; i++) {
+        content[i - 4] = packetString[i];
     }
 
     return makePacket(opcode, length, packetNum, content);
@@ -86,18 +87,18 @@ parseCPacket(packet packet, char **fileName) {
 
 char *
 packetToString(packet packet) {
-    int length = packetLength(packet) + 3;
+    int length = packetLength(packet) + 4;
     char *packetString = (char *)malloc(length);
     
     packetString[0] = packetOpcode(packet);
-    packetString[1] = length + '\0';
-    packetString[2] = packetNum(packet) + '\0';
+    packetString[1] = (length >> 8) & 0xFF;
+    packetString[2] = length & 0xFF;
+    packetString[3] = packetNum(packet) + '\0';
 
     char *content = packetContent(packet);
 
-    for (int i = 3; i < length; i++) {
-        packetString[i] = content[i - 3];
-
+    for (int i = 4; i < length; i++) {
+        packetString[i] = content[i - 4];
     }
 
     return packetString;
