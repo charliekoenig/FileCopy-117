@@ -106,7 +106,53 @@ packetToString(packet packet) {
     return packetString;
 }
 
+bool 
+packetCompare(packet p1, packet p2) {
+    int p1Len = packetLength(p1);
+    int p2Len = packetLength(p2);
+
+    if (p1Len != p2Len) {
+        cout << "Length wrong\n";
+        return false;
+    }
+
+    if (packetOpcode(p1) != packetOpcode(p2)) {
+        cout << "Opcode wrong\n";
+        return false;
+    }
+
+
+    if ((memcmp(packetContent(p1), packetContent(p2), p1Len - 4) != 0)) {
+        cout << "Cotent Wrong\n";
+        return false;
+    }
+
+    return true;
+}
+
+
 void freePacket(packet packet) {
     free(packet->content);
     free(packet);
 }
+
+/*
+char *
+packetContent(packet packet) {
+    return packet->content;
+}
+
+int  
+packetLength(packet packet) {
+    return packet->length;
+}
+
+int  
+packetNum(packet packet) {
+    return packet->packetNum;
+}
+
+char 
+packetOpcode(packet packet) {
+    return packet->opcode;
+}*/

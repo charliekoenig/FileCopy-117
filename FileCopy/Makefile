@@ -44,6 +44,8 @@ LDFLAGS =
 INCLUDES = $(C150LIB)c150dgmsocket.h $(C150LIB)c150nastydgmsocket.h $(C150LIB)c150network.h $(C150LIB)c150exceptions.h $(C150LIB)c150debug.h $(C150LIB)c150utility.h
 
 all: nastyfiletest makedatafile sha1test endtoendclient endtoendserver filecopyclient filecopyserver
+filecopy: filecopyclient filecopyserver
+endtoend: endtoendclient endtoendserver
 
 
 #
@@ -61,8 +63,8 @@ endtoendserver: endtoendServer.cpp nastyfileops.cpp packetstruct.cpp makeserverp
 #
 # Build the filecopyclient
 #
-filecopyclient: fileCopyClient.cpp nastyfileops.cpp packetstruct.cpp $(C150AR) $(INCLUDES)
-	$(CPP) -o filecopyclient  $(CPPFLAGS) fileCopyClient.cpp nastyfileops.cpp packetstruct.cpp $(C150AR) -lssl -lcrypto
+filecopyclient: fileCopyClient.cpp nastyfileops.cpp packetstruct.cpp makeclientpackets.cpp $(C150AR) $(INCLUDES)
+	$(CPP) -o filecopyclient  $(CPPFLAGS) fileCopyClient.cpp nastyfileops.cpp packetstruct.cpp makeclientpackets.cpp $(C150AR) -lssl -lcrypto
 
 #
 # Build the filecopyserver

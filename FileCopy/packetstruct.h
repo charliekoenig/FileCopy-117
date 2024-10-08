@@ -17,4 +17,6 @@ ssize_t parseCPacket(packet packet, char **fileName);
 char *packetToString(packet packet);
 void freePacket(packet packet);
 
+bool packetCompare(packet p1, packet p2);
+
 #endif

@@ -3,6 +3,7 @@
 #include "c150grading.h"
 #include "nastyfileops.h"
 #include "packetstruct.h"
+#include "makeclientpackets.h"
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -44,7 +45,7 @@ main(int argc, char *argv[]) {
         exit(8);
     }
 
-    char *fileName;
+    char *filename;
     char incomingMessage[512];
     int packetNumber = 0;
     packet response;
@@ -57,37 +58,40 @@ main(int argc, char *argv[]) {
 
         // loop for each file in the given directory
         while ((sourceFile = readdir(SRC)) != NULL) {
-            fileName = sourceFile -> d_name;
+            filename = sourceFile -> d_name;
             // skip the . and .. names
-            if ((strcmp(fileName, ".") == 0) || (strcmp(fileName, "..")  == 0 )) 
+            if ((strcmp(filename, ".") == 0) || (strcmp(filename, "..")  == 0 )) 
                 continue;
 
             bool noResponse = sock -> timedout();
             bool unexpectedPacket = true;
 
-            printf("FILENAME: %s\n", fileName);
+            printf("filename: %s\n", filename);
             
             // get file information
             unsigned char *fileContent;
-            ssize_t bytesRead = readFile(argv[SRC_DIR], fileName, atoi(argv[FILE_NAST_ARG]), &fileContent);
+            ssize_t bytesRead = readFile(argv[SRC_DIR], filename, atoi(argv[FILE_NAST_ARG]), &fileContent);
             unsigned int bytesReadSize = sizeof(bytesRead);
             unsigned char bytesReadCharRep[bytesReadSize];
             for (unsigned int offset = 0; offset < bytesReadSize; offset++) {
                 bytesReadCharRep[bytesReadSize - 1 - offset] = ((bytesRead >> (offset * 8)) & ~0);
             }
 
-            int cContentLen = strlen(fileName) + bytesReadSize;
+            int cContentLen = strlen(filename) + bytesReadSize;
             char cContent[cContentLen];
             for (int k = 0; k < cContentLen; k++) {
                 if (k < (int) bytesReadSize) {
                     cContent[k] = bytesReadCharRep[k];
                 } else {
-                    cContent[k] = fileName[k - (int) bytesReadSize];
+                    cContent[k] = filename[k - (int) bytesReadSize];
                 }
             }
 
             // create packet and write to server
             packet fileInfoPacket = makePacket('C', cContentLen, packetNumber, cContent);
+            packet fileInfoPacket2 = makeCopyPacket(bytesRead, filename, packetNumber);
+            cout << "Packet comparison: " << packetCompare(fileInfoPacket, fileInfoPacket2) << endl;
+
             char *fileInfoPacketString = packetToString(fileInfoPacket);
             // cout << fileInfoPacketString << endl;
             // printf("packetcontent: %s\n", packetContent(fileInfoPacket));
@@ -98,17 +102,17 @@ main(int argc, char *argv[]) {
             // printf("packetOpcode: %c\n", packetOpcode(fileInfoPacket));
             // printf("packetLength: %d\n", packetLength(fileInfoPacket));
             // printf("packetNum: %d\n", packetNum(fileInfoPacket));
-            char *fileNameRead = NULL;
-            parseCPacket(fileInfoPacket, &fileNameRead);
-            printf("%s\n", fileNameRead);
-            free(fileNameRead);
-            int packetLen = packetLength(fileInfoPacket) + 3;
+            char *filenameRead = NULL;
+            parseCPacket(fileInfoPacket, &filenameRead);
+            printf("%s\n", filenameRead);
+            free(filenameRead);
+            int packetLen = packetLength(fileInfoPacket);
             freePacket(fileInfoPacket);
 
             int attempts = 0;
             while (noResponse || unexpectedPacket) {
                 sock -> write(fileInfoPacketString, packetLen);
-                // *GRADING << "File: " << fileName << " transmission complete, waiting for end-to-end check, attempt " << attempts << endl;
+                // *GRADING << "File: " << filename << " transmission complete, waiting for end-to-end check, attempt " << attempts << endl;
 
                 sock -> read(incomingMessage, sizeof(incomingMessage));
                 noResponse = sock -> timedout();

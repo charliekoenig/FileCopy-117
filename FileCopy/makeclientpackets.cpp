@@ -16,20 +16,20 @@ makeCopyPacket(ssize_t fileLen, char *filename, int packetNumber) {
         }
     }
 
-    return makePacket('C', contentLen, packetNumber, cContent);
+    return makePacket('C', contentLen, packetNumber, content);
 }
 
 packet 
-makeStatusPacket(char *serverHash, char *clientHash, char *filename, int packetNum) {
+makeStatusPacket(char *serverHash, char *clientHash, char *filename, int packetNumber) {
     int contentLength = strlen(filename) + 1;
     char content[contentLength];
 
     content[0] = (memcmp(serverHash, clientHash, 20) == 0) ? 'S' : 'F';
     for (int index = 1; index < contentLength; index++) {
-        statusContent[index] = filename[index - 1];
+        content[index] = filename[index - 1];
     }
 
-    return makePacket('S', contentLength, packetNumber, statusContent);
+    return makePacket('S', contentLength, packetNumber, content);
 }
 
 packet 
