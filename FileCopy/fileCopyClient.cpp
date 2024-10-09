@@ -119,13 +119,14 @@ main(int argc, char *argv[]) {
 
                 if (!noResponse) {
                     response = stringToPacket(incomingMessage);
-                    unexpectedPacket = (packetOpcode(response) != 'U' ||
+                    unexpectedPacket = (packetOpcode(response) != 'R' ||
                                         packetNum(response) != packetNumber);
                 }
                 
                 attempts++; 
             }
             // printf("Hash Response: ");
+            printPacket(response);
             packetNumber = (packetNumber == 255) ? 0 : (packetNumber + 1);
 
             // unsigned char parsedHash[20];

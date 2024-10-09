@@ -26,7 +26,7 @@ makeHashPacket(packet incomingPacket, unsigned char *fileContent, size_t fConten
     int packetNumber = packetNum(incomingPacket);
 
     char outgoingContent[contentLength];
-    char *incomingConent = packetContent(incomingPacket);
+    char *incomingContent = packetContent(incomingPacket);
 
     // Output buffer populated with SHA1 hash
     unsigned char obuff[20];
@@ -34,7 +34,7 @@ makeHashPacket(packet incomingPacket, unsigned char *fileContent, size_t fConten
 
     // populate packet content with hash followed by filename
     for (int j = 0; j < contentLength; j++) {
-        outgoingContent[j] = j < 20 ? obuff[j] : incomingConent[j-20];
+        outgoingContent[j] = j < 20 ? obuff[j] : incomingContent[j-20];
     }
 
     // return a hash packet
@@ -60,4 +60,38 @@ makeAckPacket(packet incomingPacket) {
     int packetNumber = packetNum(incomingPacket);
 
     return makePacket('A', strlen(fileName), packetNumber, fileName);
+}
+
+/**********************************************************
+ * Function: makeResPacket
+
+ * Parameters: 
+    * packet incomingPacket -> Message from client encoded 
+                               as a packet struct
+
+ * Return: A response packet acknowledging the request packet
+
+ * Notes: 
+    * Allocates memory for return packet that must be freed 
+      by caller
+***********************************************************/
+packet 
+makeResPacket(packet incomingPacket) {
+    int packetNumber = packetNum(incomingPacket);
+
+    // get total bytes out
+    // get the opcode, length, num out
+    // (will be B for B acks, we can modularize this later on)
+    int filenameLength = packetLength(incomingPacket) - sizeof(ssize_t) - 4;
+
+    char *filename = NULL;
+    parseCPacket(incomingPacket, &filename);
+
+    char cAndFilename[filenameLength + 1];
+    cAndFilename[0] = 'C';
+    for (int i = 1; i < filenameLength + 1; i++) {
+        cAndFilename[i] = filename[i - 1];
+    }
+
+    return makePacket('R', filenameLength + 1, packetNumber, cAndFilename);
 }

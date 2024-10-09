@@ -80,8 +80,13 @@ main(int argc, char *argv[]) {
                     packetOut = makeAckPacket(packetIn);
                     break;
                 }
+                case 'C':
+                    {
+                        packetOut = makeResPacket(packetIn);
+                        break;
+                    }
                 default:
-                    printPacket(packetIn);          
+                    printPacket(packetIn);
                     packetOut = makePacket('U', 0, packetNum(packetIn), NULL);
             }
 
