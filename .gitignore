@@ -5,3 +5,5 @@ makedatafile
 sha1test
 endtoendclient
 endtoendserver
+filecopyclient
+filecopyserver
