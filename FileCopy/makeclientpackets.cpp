@@ -50,7 +50,7 @@ makeBytePacket(int offset, char *filename, char *fileContent, int packetNumber) 
 
     int contentLength = filenameLength + bytesRead + offsetBytes + filenameLengthBytes;
 
-    unsigned char content[contentLength];
+    char content[contentLength];
     for (int index = 0; index < contentLength; index++) {
         if (index >= fileContentIndex) {
             content[index] = fileContent[index - fileContentIndex];
