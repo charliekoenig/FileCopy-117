@@ -68,40 +68,31 @@ main(int argc, char *argv[]) {
 
             printf("filename: %s\n", filename);
             
+            // PREP PACKET C
             // get file information
             unsigned char *fileContent;
             ssize_t bytesRead = readFile(argv[SRC_DIR], filename, atoi(argv[FILE_NAST_ARG]), &fileContent);
-            unsigned int bytesReadSize = sizeof(bytesRead);
-            unsigned char bytesReadCharRep[bytesReadSize];
-            for (unsigned int offset = 0; offset < bytesReadSize; offset++) {
-                bytesReadCharRep[bytesReadSize - 1 - offset] = ((bytesRead >> (offset * 8)) & ~0);
-            }
+            // unsigned int bytesReadSize = sizeof(bytesRead);
+            // unsigned char bytesReadCharRep[bytesReadSize];
+            // for (unsigned int offset = 0; offset < bytesReadSize; offset++) {
+            //     bytesReadCharRep[bytesReadSize - 1 - offset] = ((bytesRead >> (offset * 8)) & ~0);
+            // }
 
-            int cContentLen = strlen(filename) + bytesReadSize;
-            char cContent[cContentLen];
-            for (int k = 0; k < cContentLen; k++) {
-                if (k < (int) bytesReadSize) {
-                    cContent[k] = bytesReadCharRep[k];
-                } else {
-                    cContent[k] = filename[k - (int) bytesReadSize];
-                }
-            }
+            // int cContentLen = strlen(filename) + bytesReadSize;
+            // char cContent[cContentLen];
+            // for (int k = 0; k < cContentLen; k++) {
+            //     if (k < (int) bytesReadSize) {
+            //         cContent[k] = bytesReadCharRep[k];
+            //     } else {
+            //         cContent[k] = filename[k - (int) bytesReadSize];
+            //     }
+            // }
 
             // create packet and write to server
-            packet fileInfoPacket = makePacket('C', cContentLen, packetNumber, cContent);
-            packet fileInfoPacket2 = makeCopyPacket(bytesRead, filename, packetNumber);
-            cout << "Packet comparison: " << packetCompare(fileInfoPacket, fileInfoPacket2) << endl;
+            packet fileInfoPacket = makeCopyPacket(bytesRead, filename, packetNumber);
 
             char *fileInfoPacketString = packetToString(fileInfoPacket);
-            // cout << fileInfoPacketString << endl;
-            // printf("packetcontent: %s\n", packetContent(fileInfoPacket));
-            // for (int k = 0; k < packetLength(fileInfoPacket); k++) {
-            //     printf("%c", packetContent(fileInfoPacket)[k]);
-            // }
-            // cout << endl;
-            // printf("packetOpcode: %c\n", packetOpcode(fileInfoPacket));
-            // printf("packetLength: %d\n", packetLength(fileInfoPacket));
-            // printf("packetNum: %d\n", packetNum(fileInfoPacket));
+            
             char *filenameRead = NULL;
             parseCPacket(fileInfoPacket, &filenameRead);
             printf("%s\n", filenameRead);
@@ -109,6 +100,7 @@ main(int argc, char *argv[]) {
             int packetLen = packetLength(fileInfoPacket);
             freePacket(fileInfoPacket);
 
+            // LOOP TIL CLIENT RECEVES R PACKET FOR C FROM SERVER
             int attempts = 0;
             while (noResponse || unexpectedPacket) {
                 sock -> write(fileInfoPacketString, packetLen);
@@ -242,5 +234,3 @@ parseHash(packet hashPacket, char *currFilename, unsigned char *parsedHash) {
     // compare filenamepacket with currFilename
     return strcmp((const char *) currFilename, (const char *) packetsFilename) == 0;
 }
-
-// to do for fri: getting things out of main in both client & server, gradelog & debug prints

@@ -31,6 +31,7 @@ main(int argc, char *argv[]) {
     char incoming[512];
     int serverNastiness = atoi(argv[NETWORK_NAST_ARG]);
     int fileNastiness   = atoi(argv[FILE_NAST_ARG]);
+    char *targetDir = argv[TARGET_DIR];
 
     int i = 0;
     try {
@@ -46,6 +47,8 @@ main(int argc, char *argv[]) {
             // convert incoming file check request packet to a string
             packet packetIn = stringToPacket(incoming);
             packet packetOut = NULL;
+
+            char *fileContent = NULL;
 
             // handles one read which is capable of handling any type of packet 
             switch (packetOpcode(packetIn)) {
@@ -82,9 +85,39 @@ main(int argc, char *argv[]) {
                 }
                 case 'C':
                     {
-                        packetOut = makeResPacket(packetIn);
+                        packetOut = makeResCPacket(packetIn);
+                        // malloc the bytes based on the parseCpacket
+                        char *filenameRead = NULL;
+                        ssize_t totalBytes = parseCPacket(packetIn, &filenameRead);
+                        printf("%s and %ld\n", filenameRead, totalBytes);
+                        // create TMP file
+                        /*
+                            actually, it might be easier to write to the TMP file each time
+                            i think we were concerned abt the time aspect of it though...
+                        */
+                        ofstream fileTMP;
+                        char filenameTMP[strlen(filenameRead) + strlen(targetDir) + 6];
+                        snprintf(filenameTMP, sizeof(filenameTMP), "%s/%s.TMP", targetDir, filenameRead);
+                        fileTMP.open(filenameTMP);
+                        fileTMP << "testing for " << filenameRead << endl;
+                        fileTMP.close();
+
+                        // filenameread wont be freed til this one is done
+                        free(filenameRead);
+                        // free filecontent before the next request (next file)
+                        fileContent = (char *)malloc(totalBytes);
+                        free(fileContent);
                         break;
                     }
+                // case 'B':
+                //     {
+                //         // after filename is parsed from the B packet
+                //         if (filename != filenameRead) break;
+                //         // otherwise just add to fileContent + offset based on parsing of the B packet
+                //         fileContent + offset = fileContentParsed
+                //         packetOut = makeResBPacket(packetIn);
+                //         break;
+                //     }
                 default:
                     printPacket(packetIn);
                     packetOut = makePacket('U', 0, packetNum(packetIn), NULL);

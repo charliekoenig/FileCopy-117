@@ -7,3 +7,4 @@ endtoendclient
 endtoendserver
 filecopyclient
 filecopyserver
+*.TMP

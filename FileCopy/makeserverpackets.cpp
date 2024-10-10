@@ -75,8 +75,18 @@ makeAckPacket(packet incomingPacket) {
     * Allocates memory for return packet that must be freed 
       by caller
 ***********************************************************/
+
+
+// todo: (idil) i feel like the length is off by one:
+/*
+PACKET CONTENTS
+R
+13
+1
+Cdata10
+ */
 packet 
-makeResPacket(packet incomingPacket) {
+makeResCPacket(packet incomingPacket) {
     int packetNumber = packetNum(incomingPacket);
 
     // get total bytes out
