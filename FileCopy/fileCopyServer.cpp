@@ -114,7 +114,7 @@ main(int argc, char *argv[]) {
                         int bytesRead = parseBytesRead(packetIn);
                         char *fileContent = parseBytesContent(packetIn, bytesRead);
 
-                        // cout << "First char in packet " << packetNum(packetIn) << ": " << *fileContent << endl;
+                        cout << "First char in packet " << packetNum(packetIn) << ": " << *fileContent << endl;
                         (void) fileContent;
                         (void) offset;
 
