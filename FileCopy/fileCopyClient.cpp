@@ -20,7 +20,9 @@ const int SERVER_ARG       = 1;
 const int NETWORK_NAST_ARG = 2;
 const int FILE_NAST_ARG    = 3;
 const int SRC_DIR          = 4;
+
 const int MAX_READ         = 503;
+const int MAX_PACKET_NUM   = 0x3FFF;
 
 void checkDirectory(char *dirname);
 bool parseHash(packet hashPacket, char *currFilename, unsigned char *parsedHash);
@@ -108,7 +110,7 @@ main(int argc, char *argv[]) {
                 noResponse = sock -> timedout();
 
                 if (!noResponse) {
-                    response = stringToPacket(incomingMessage);
+                    response = stringToPacket((unsigned char *)incomingMessage);
                     unexpectedPacket = (packetOpcode(response) != 'R' ||
                                         packetNum(response) != packetNumber);
                 }
@@ -129,6 +131,9 @@ main(int argc, char *argv[]) {
                 int packetLen = packetLength(bytePacket);
                 sock -> write(bytePacketString, packetLen);
 
+                sock -> read(incomingMessage, sizeof(incomingMessage));
+                noResponse = sock -> timedout();
+
                 // create a queue with every packet to be sent
                 // pop from queue and send, add to map with {expected response -> packet}
                 // if response maps to a packet, free packet and remove pair
@@ -136,11 +141,11 @@ main(int argc, char *argv[]) {
 
                 (void) bytePacket;
                 offset += bytesToSend;
-                packetNumber = (packetNumber == 255) ? 0 : (packetNumber + 1);
+                packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
             }
 
 
-            packetNumber = (packetNumber == 255) ? 0 : (packetNumber + 1);
+            packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
             free(fileContent);
 
             // unsigned char parsedHash[20];
@@ -200,7 +205,7 @@ main(int argc, char *argv[]) {
             // }
             // printf("Ack Response: %s\n", packetContent(response));
             // cout << "_______________________________" << endl;
-            // packetNumber = (packetNumber == 255) ? 0 : (packetNumber + 1);
+            // packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
 
         }
     } catch (C150NetworkException &e) {

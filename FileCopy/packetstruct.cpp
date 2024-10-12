@@ -10,8 +10,8 @@ using namespace std;
 
 struct packetStruct {
     char opcode;
-    int length;
-    int packetNum;
+    unsigned int length;
+    unsigned int packetNum;
     char *content;
 };
 
@@ -32,18 +32,17 @@ packet makePacket(char opcode, int contentLength, int packetNum, char *content) 
     return newPacket;
 }
 
-packet stringToPacket(char *packetString) {
+packet stringToPacket(unsigned char *packetString) {
     char opcode = packetString[0];
-    int contentLength = (((unsigned char)packetString[1] << 8) + (unsigned char)packetString[2]) - 5;
+    int contentLength = ((packetString[1] << 2) + (packetString[2] >> 6)) - 5;
+    int packetNumber = ((packetString[2] & 0x3F) << 8) + packetString[3];
 
     char content[contentLength];
-    int packetNum = ((unsigned char)packetString[3] - '\0');
-
     for (int i = 4; i < (contentLength + 4); i++) {
         content[i - 4] = packetString[i];
     }
 
-    return makePacket(opcode, contentLength, packetNum, content);
+    return makePacket(opcode, contentLength, packetNumber, content);
 }
 
 char *
@@ -69,12 +68,13 @@ packetOpcode(packet packet) {
 char *
 packetToString(packet packet) {
     int length = packetLength(packet);
+    int packetNumber = packetNum(packet);
     char *packetString = (char *)malloc(length);
     
     packetString[0] = packetOpcode(packet);
-    packetString[1] = (length >> 8) & 0xFF;
-    packetString[2] = length & 0xFF;
-    packetString[3] = packetNum(packet) + '\0';
+    packetString[1] = (length >> 2) & 0xFF;
+    packetString[2] = ((length & 0x03) << 6) + ((packetNumber >> 8) & 0x3F);
+    packetString[3] = (packetNumber & 0xFF);
 
     char *content = packetContent(packet);
 

@@ -45,7 +45,7 @@ main(int argc, char *argv[]) {
             }    
 
             // convert incoming file check request packet to a string
-            packet packetIn = stringToPacket(incoming);
+            packet packetIn = stringToPacket((unsigned char *)incoming);
             packet packetOut = NULL;
 
             char *fileContent = NULL;
