@@ -74,13 +74,13 @@ parseCPacket(packet packet, char **fileName) {
     *fileName = (char *)malloc(contentLength - sizeof(ssize_t));
     for (int i = 0; i < contentLength; i++) {
         if ((unsigned) i < sizeof(ssize_t)) {
-            unpackedLen = (unpackedLen << 8) + (ssize_t)(packetContent(packet)[i]);
+            unpackedLen = (unpackedLen << 8) + (unsigned char)(packetContent(packet)[i]);
         } else {
             (*fileName)[(unsigned) i - sizeof(ssize_t)] = packetContent(packet)[i];
         }
     }
 
-    (*fileName)[contentLength - sizeof(ssize_t)] = '\0';
+    (*fileName)[contentLength - sizeof(ssize_t) - 1] = '\0';
 
     return unpackedLen;
 }

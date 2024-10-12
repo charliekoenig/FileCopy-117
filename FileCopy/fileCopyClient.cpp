@@ -20,6 +20,7 @@ const int SERVER_ARG       = 1;
 const int NETWORK_NAST_ARG = 2;
 const int FILE_NAST_ARG    = 3;
 const int SRC_DIR          = 4;
+const int MAX_READ         = 503;
 
 void checkDirectory(char *dirname);
 bool parseHash(packet hashPacket, char *currFilename, unsigned char *parsedHash);
@@ -89,7 +90,9 @@ main(int argc, char *argv[]) {
             // }
 
             // create packet and write to server
+            cout << filename << " and " << bytesRead << endl;
             packet fileInfoPacket = makeCopyPacket(bytesRead, filename, packetNumber);
+            printPacket(fileInfoPacket);
 
             char *fileInfoPacketString = packetToString(fileInfoPacket);
             
@@ -117,9 +120,27 @@ main(int argc, char *argv[]) {
                 
                 attempts++; 
             }
-            // printf("Hash Response: ");
-            printPacket(response);
+            
+            int offset = 0;
+            int bytesToSend = MAX_READ - strlen(filename);
+            packet bytePacket = NULL;
+            while (offset < bytesRead) {
+        
+                if (bytesRead < (bytesToSend + offset)) {
+                    bytesToSend = bytesRead - offset;
+                    bytePacket = makeBytePacket(offset, filename, fileContent, packetNumber, bytesToSend, strlen(filename));
+                } else {
+                    bytePacket = makeBytePacket(offset, filename, fileContent, packetNumber, bytesToSend, strlen(filename));
+                }
+
+                (void) bytePacket;
+                offset += bytesToSend;
+                packetNumber = (packetNumber == 255) ? 0 : (packetNumber + 1);
+            }
+
+
             packetNumber = (packetNumber == 255) ? 0 : (packetNumber + 1);
+            free(fileContent);
 
             // unsigned char parsedHash[20];
             // parseHash(response, fileName, parsedHash);

@@ -2,6 +2,10 @@
 #include <openssl/sha.h>
 #include <cstring>
 
+// testing
+#include <iostream>
+using namespace std;
+
 /**********************************************************
  * Function: makeHashPacket
 
@@ -63,7 +67,7 @@ makeAckPacket(packet incomingPacket) {
 }
 
 /**********************************************************
- * Function: makeResPacket
+ * Function: makeResCPacket
 
  * Parameters: 
     * packet incomingPacket -> Message from client encoded 
@@ -75,25 +79,11 @@ makeAckPacket(packet incomingPacket) {
     * Allocates memory for return packet that must be freed 
       by caller
 ***********************************************************/
-
-
-// todo: (idil) i feel like the length is off by one:
-/*
-PACKET CONTENTS
-R
-13
-1
-Cdata10
- */
 packet 
 makeResCPacket(packet incomingPacket) {
     int packetNumber = packetNum(incomingPacket);
 
-    // get total bytes out
-    // get the opcode, length, num out
-    // (will be B for B acks, we can modularize this later on)
-    int filenameLength = packetLength(incomingPacket) - sizeof(ssize_t) - 4;
-
+    int filenameLength = packetLength(incomingPacket) - sizeof(ssize_t) - 5;
     char *filename = NULL;
     parseCPacket(incomingPacket, &filename);
 

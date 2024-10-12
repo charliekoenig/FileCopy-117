@@ -1,6 +1,8 @@
 #include "makeclientpackets.h"
-#include <openssl/sha.h>
 #include <cstring>
+
+#include <iostream>
+using namespace std;
 
 packet 
 makeCopyPacket(ssize_t fileLen, char *filename, int packetNumber) {
@@ -10,7 +12,7 @@ makeCopyPacket(ssize_t fileLen, char *filename, int packetNumber) {
 
     for (int index = 0; index < contentLen; index++) {
         if (index < bytes) {
-            content[index] = (fileLen >> ((bytes - 1 - index) * 8)) & 0xFF;
+            content[index] = (unsigned char)(fileLen >> ((bytes - 1 - index) * 8));
         } else {
             content[index] = filename[index - bytes];
         }
@@ -38,22 +40,23 @@ makeFilecheckPacket(char *filename, int packetNumber) {
 }
 
 packet
-makeBytePacket(int offset, char *filename, char *fileContent, int packetNumber) {
+makeBytePacket(int offset, char *filename, unsigned char *fileContent, int packetNumber,
+                                            int bytesRead, int filenameLength) {
     int filenameLengthBytes = 1;
     int offsetBytes         = 3;
-	// these should be passed as parameters, we don’t want strlen failing because of null 
-    int filenameLength      = strlen(filename);
-    int bytesRead           = strlen(fileContent);
 
+    // index of specific content in output array
     int fileContentIndex = (offsetBytes + filenameLengthBytes + filenameLength);
-    int filenameIndex    = (offsetBytes + filenameLengthBytes) - 1;
+    int filenameIndex    = (offsetBytes + filenameLengthBytes);
 
+    // length of output array (not including null termination)
     int contentLength = filenameLength + bytesRead + offsetBytes + filenameLengthBytes;
-
     char content[contentLength];
-    for (int index = 0; index < contentLength; index++) {
+
+    int index = 0;
+    for (index = 0; index < contentLength; index++) {
         if (index >= fileContentIndex) {
-            content[index] = fileContent[index - fileContentIndex];
+            content[index] = fileContent[(index - fileContentIndex) + offset];
         } else if (index >= filenameIndex) {
             content[index] = filename[index - filenameIndex];
         } else if (index == 3) {

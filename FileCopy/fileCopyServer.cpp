@@ -90,6 +90,7 @@ main(int argc, char *argv[]) {
                         char *filenameRead = NULL;
                         ssize_t totalBytes = parseCPacket(packetIn, &filenameRead);
                         printf("%s and %ld\n", filenameRead, totalBytes);
+                        printPacket(packetIn);
                         // create TMP file
                         /*
                             actually, it might be easier to write to the TMP file each time
