@@ -66,8 +66,6 @@ main(int argc, char *argv[]) {
 
             bool noResponse = sock -> timedout();
             bool unexpectedPacket = true;
-
-            printf("filename: %s\n", filename);
             
             // PREP PACKET C
             // get file information
@@ -90,16 +88,13 @@ main(int argc, char *argv[]) {
             // }
 
             // create packet and write to server
-            cout << filename << " and " << bytesRead << endl;
             packet fileInfoPacket = makeCopyPacket(bytesRead, filename, packetNumber);
-            printPacket(fileInfoPacket);
 
             char *fileInfoPacketString = packetToString(fileInfoPacket);
             
-            char *filenameRead = NULL;
-            parseCPacket(fileInfoPacket, &filenameRead);
-            printf("%s\n", filenameRead);
-            free(filenameRead);
+            // char *filenameRead = NULL;
+            // parseCPacket(fileInfoPacket, &filenameRead);
+            // free(filenameRead);
             int packetLen = packetLength(fileInfoPacket);
             freePacket(fileInfoPacket);
 
@@ -125,13 +120,19 @@ main(int argc, char *argv[]) {
             int bytesToSend = MAX_READ - strlen(filename);
             packet bytePacket = NULL;
             while (offset < bytesRead) {
-        
                 if (bytesRead < (bytesToSend + offset)) {
                     bytesToSend = bytesRead - offset;
-                    bytePacket = makeBytePacket(offset, filename, fileContent, packetNumber, bytesToSend, strlen(filename));
-                } else {
-                    bytePacket = makeBytePacket(offset, filename, fileContent, packetNumber, bytesToSend, strlen(filename));
-                }
+                } 
+
+                bytePacket = makeBytePacket(offset, filename, fileContent, packetNumber, bytesToSend, strlen(filename));
+                char *bytePacketString = packetToString(bytePacket);
+                int packetLen = packetLength(bytePacket);
+                sock -> write(bytePacketString, packetLen);
+
+                // create a queue with every packet to be sent
+                // pop from queue and send, add to map with {expected response -> packet}
+                // if response maps to a packet, free packet and remove pair
+                // when queue is empty iterate through map and continue trying
 
                 (void) bytePacket;
                 offset += bytesToSend;
@@ -201,7 +202,6 @@ main(int argc, char *argv[]) {
             // cout << "_______________________________" << endl;
             // packetNumber = (packetNumber == 255) ? 0 : (packetNumber + 1);
 
-            printf("--------------------\n");
         }
     } catch (C150NetworkException &e) {
         cerr << argv[0] << ": caught C150NetworkException: " << e.formattedExplanation() << endl;

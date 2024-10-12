@@ -66,5 +66,6 @@ makeBytePacket(int offset, char *filename, unsigned char *fileContent, int packe
         }
     }
 
+    cout << "First char in packet " << packetNumber << ": " << fileContent[offset] << endl;
     return makePacket('B', contentLength, packetNumber, content);
 }

@@ -89,8 +89,6 @@ main(int argc, char *argv[]) {
                         // malloc the bytes based on the parseCpacket
                         char *filenameRead = NULL;
                         ssize_t totalBytes = parseCPacket(packetIn, &filenameRead);
-                        printf("%s and %ld\n", filenameRead, totalBytes);
-                        printPacket(packetIn);
                         // create TMP file
                         /*
                             actually, it might be easier to write to the TMP file each time
@@ -110,23 +108,37 @@ main(int argc, char *argv[]) {
                         free(fileContent);
                         break;
                     }
-                // case 'B':
-                //     {
-                //         // after filename is parsed from the B packet
-                //         if (filename != filenameRead) break;
-                //         // otherwise just add to fileContent + offset based on parsing of the B packet
-                //         fileContent + offset = fileContentParsed
-                //         packetOut = makeResBPacket(packetIn);
-                //         break;
-                //     }
+                case 'B':
+                    {
+                        int offset = parseByteOffset(packetIn);
+                        int bytesRead = parseBytesRead(packetIn);
+                        char *fileContent = parseBytesContent(packetIn, bytesRead);
+
+                        // cout << "First char in packet " << packetNum(packetIn) << ": " << *fileContent << endl;
+                        (void) fileContent;
+                        (void) offset;
+
+                        // temp
+                        packetOut = makePacket('U', 0, packetNum(packetIn), NULL);
+
+                        // // after filename is parsed from the B packet
+                        // if (filename != filenameRead) break;
+                        // // otherwise just add to fileContent + offset based on parsing of the B packet
+                        // fileContent + offset = fileContentParsed
+                        // packetOut = makeResBPacket(packetIn);
+                        break;
+                    }
                 default:
                     printPacket(packetIn);
                     packetOut = makePacket('U', 0, packetNum(packetIn), NULL);
             }
 
-            sock -> write((const char *)packetToString(packetOut), packetLength(packetOut) + 2);
+            const char *outgoingContent = packetToString(packetOut);
+
+            sock -> write(outgoingContent, packetLength(packetOut));
             freePacket(packetOut);
             freePacket(packetIn);
+            free((void *)outgoingContent);
             i++;
         }
             

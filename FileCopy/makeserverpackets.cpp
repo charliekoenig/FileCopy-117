@@ -84,6 +84,7 @@ makeResCPacket(packet incomingPacket) {
     int packetNumber = packetNum(incomingPacket);
 
     int filenameLength = packetLength(incomingPacket) - sizeof(ssize_t) - 5;
+
     char *filename = NULL;
     parseCPacket(incomingPacket, &filename);
 
@@ -93,5 +94,63 @@ makeResCPacket(packet incomingPacket) {
         cAndFilename[i] = filename[i - 1];
     }
 
+    free(filename);
+
     return makePacket('R', filenameLength + 1, packetNumber, cAndFilename);
+}
+
+
+ssize_t
+parseCPacket(packet packet, char **fileName) {
+    ssize_t unpackedLen = 0;
+
+    // includes null character
+    int contentLength = packetLength(packet) - 4;
+
+    *fileName = (char *)malloc(contentLength - sizeof(ssize_t));
+    for (int i = 0; i < contentLength; i++) {
+        if ((unsigned) i < sizeof(ssize_t)) {
+            unpackedLen = (unpackedLen << 8) + (unsigned char)(packetContent(packet)[i]);
+        } else {
+            (*fileName)[(unsigned) i - sizeof(ssize_t)] = packetContent(packet)[i];
+        }
+    }
+
+    (*fileName)[contentLength - sizeof(ssize_t) - 1] = '\0';
+
+    return unpackedLen;
+}
+
+
+int
+parseByteOffset(packet packet) {
+    char *data = packetContent(packet);
+    int offset = 0;
+    for (int i = 0; i < 3; i++) {
+        offset = (offset << 8) + (unsigned char)(data[i]);
+    }
+
+    return offset;
+}
+
+int 
+parseBytesRead(packet packet) {
+    char *data = packetContent(packet);
+
+    int contentLen = packetLength(packet) - 5;
+    int filenameLen = (unsigned char)data[3];
+    int bytesForFilenameLen = 1;
+    int bytesForOffset = 3;
+    
+    return (contentLen - (filenameLen + bytesForFilenameLen + bytesForOffset));
+}
+
+char *
+parseBytesContent(packet packet, int bytesRead) {
+    int contentLen = packetLength(packet) - 5;
+    int contentStart = contentLen - bytesRead;
+
+    char *data = packetContent(packet);
+
+    return &(data[contentStart]);
 }

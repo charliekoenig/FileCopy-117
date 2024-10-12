@@ -36,8 +36,7 @@ packet stringToPacket(char *packetString) {
     char opcode = packetString[0];
     int contentLength = (((unsigned char)packetString[1] << 8) + (unsigned char)packetString[2]) - 5;
 
-    // should be array not malloc'd
-    char *content = (char *)malloc(contentLength);
+    char content[contentLength];
     int packetNum = ((unsigned char)packetString[3] - '\0');
 
     for (int i = 4; i < (contentLength + 4); i++) {
@@ -65,24 +64,6 @@ packetNum(packet packet) {
 char 
 packetOpcode(packet packet) {
     return packet->opcode;
-}
-
-ssize_t
-parseCPacket(packet packet, char **fileName) {
-    ssize_t unpackedLen = 0;
-    int contentLength = packetLength(packet) - 4;
-    *fileName = (char *)malloc(contentLength - sizeof(ssize_t));
-    for (int i = 0; i < contentLength; i++) {
-        if ((unsigned) i < sizeof(ssize_t)) {
-            unpackedLen = (unpackedLen << 8) + (unsigned char)(packetContent(packet)[i]);
-        } else {
-            (*fileName)[(unsigned) i - sizeof(ssize_t)] = packetContent(packet)[i];
-        }
-    }
-
-    (*fileName)[contentLength - sizeof(ssize_t) - 1] = '\0';
-
-    return unpackedLen;
 }
 
 char *

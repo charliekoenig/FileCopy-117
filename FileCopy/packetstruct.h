@@ -12,7 +12,6 @@ char *packetContent(packet packet);
 int packetLength(packet packet);
 char packetOpcode(packet packet);
 int packetNum(packet packet);
-ssize_t parseCPacket(packet packet, char **fileName);
 
 char *packetToString(packet packet);
 void freePacket(packet packet);
