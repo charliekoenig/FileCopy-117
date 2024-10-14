@@ -71,53 +71,63 @@ main(int argc, char *argv[]) {
 
                     unsigned char hashTMP[20];
                     unsigned char obuff[20];
-                    SHA1((const unsigned char *)fileData[fName], totalBytes, obuff);
-                    
-                    // redo the entire write if hashes are different
-                    do {
-                        // write to TMP file since file copy is done
-                        while (outputFile.fopen(targetName.c_str(), "wb") == NULL) {
-                            cerr << "Error opening input file " << targetName << 
-                                " errno=" << strerror(errno) << endl;
-                        }
 
-                        while ((int) outputFile.fwrite(fileData[fName], 1, totalBytes) != totalBytes) {
-                            cerr << "Error writing file " << targetName << 
-                                "  errno=" << strerror(errno) << endl;
-                        }
-
+                    if (fileData[fName] == NULL) {
+                        packetOut = makePacket('U', 0, packetNum(packetIn), NULL);
+                    } else {
+                        SHA1((const unsigned char *)fileData[fName], totalBytes, obuff);
                         
-                        while (outputFile.fclose() != 0) {
-                            cerr << "Error closing output file " << targetName << 
-                                " errno=" << strerror(errno) << endl;
-                        }
+                        // redo the entire write if hashes are different
+                        int currAttempt = 1;
+                        do {
+                            // write to TMP file since file copy is done
+                            while (outputFile.fopen(targetName.c_str(), "wb") == NULL) {
+                                cerr << "Error opening input file " << targetName << 
+                                    " errno=" << strerror(errno) << endl;
+                            }
 
-                        // read from TMP file for end to end check
-                        while (outputFile.fopen(targetName.c_str(), "rb") == NULL) {
-                            cerr << "Error opening input file " << targetName << 
-                                " errno=" << strerror(errno) << endl;
-                        }
+                            while ((int) outputFile.fwrite(fileData[fName], 1, totalBytes) != totalBytes) {
+                                cerr << "Error writing file " << targetName << 
+                                    "  errno=" << strerror(errno) << endl;
+                            }
+                            
+                            while (outputFile.fclose() != 0) {
+                                cerr << "Error closing output file " << targetName << 
+                                    " errno=" << strerror(errno) << endl;
+                            }
 
-                        char *readFromTMP = (char *)malloc(totalBytes);
+                            // read from TMP file for end to end check
+                            while (outputFile.fopen(targetName.c_str(), "rb") == NULL) {
+                                cerr << "Error opening input file " << targetName << 
+                                    " errno=" << strerror(errno) << endl;
+                            }
 
-                        while ((int) outputFile.fread(readFromTMP, 1, totalBytes) != totalBytes) {
-                            cerr << "Error reading file " << targetName << 
-                                "  errno=" << strerror(errno) << endl;
-                        }
-                        
-                        while (outputFile.fclose() != 0) {
-                            cerr << "Error closing output file " << targetName << 
-                                " errno=" << strerror(errno) << endl;
-                        }
+                            char *readFromTMP = (char *)malloc(totalBytes);
 
-                        // compare hashes of filecontent and readFromTMP
-                        SHA1((const unsigned char *)readFromTMP, totalBytes, hashTMP);
-                    } while (!(strncmp((const char *) hashTMP, (const char *) obuff, 20) == 0));
+                            while ((int) outputFile.fread(readFromTMP, 1, totalBytes) != totalBytes) {
+                                cerr << "Error reading file " << targetName << 
+                                    "  errno=" << strerror(errno) << endl;
+                            }
+                            
+                            while (outputFile.fclose() != 0) {
+                                cerr << "Error closing output file " << targetName << 
+                                    " errno=" << strerror(errno) << endl;
+                            }
+
+                            cout << "Attempt " << currAttempt << " comparing hash\n";
+                            currAttempt += 1;
+
+                            // compare hashes of filecontent and readFromTMP
+                            SHA1((const unsigned char *)readFromTMP, totalBytes, hashTMP);
+                            free(readFromTMP);
+                        } while (!(strncmp((const char *) hashTMP, (const char *) obuff, 20) == 0));
 
 
-                    // todo: server keeps track of all hashes it has computed thus far
-                    //       to deal with a possible drop of a H packet that would make the C resend F
-                    packetOut = makeHashPacket(packetIn, hashTMP);
+                        // todo: server keeps track of all hashes it has computed thus far
+                        //       to deal with a possible drop of a H packet that would make the C resend F
+                        packetOut = makeHashPacket(packetIn, hashTMP);
+                    }
+
                     break;
                 }
                 case 'S':
@@ -129,26 +139,32 @@ main(int argc, char *argv[]) {
                         *GRADING << "File: " << fName << " end-to-end check failed" << endl;
                     }
 
-                    packetOut = makeAckPacket(packetIn);
+                    if (fileData[fName] == NULL) {
+                        packetOut = makePacket('U', 0, packetNum(packetIn), NULL);
+                    } else {
+                        free(fileData[fName]);
+                        fileData[fName] = NULL;
+
+                        packetOut = makeAckPacket(packetIn);
+                    }
+
                     break;
                 }
                 case 'C':
                     {
-                        packetOut = makeResCPacket(packetIn);
                         // malloc the bytes based on the parseCpacket
                         char *filenameRead = NULL;
                         totalBytes = parseCPacket(packetIn, &filenameRead);
+                        string filenameReadString(filenameRead);
                         
-
-                        // filenameread wont be freed til this one is done
-                        
-                        
-                        if (fileData[filenameRead] == NULL) {
-                            fileData[filenameRead] = (unsigned char *)malloc(totalBytes);
+                        if (fileData[filenameReadString] == NULL) {
+                            fileData[filenameReadString] = (unsigned char *)malloc(totalBytes);
                             printf("filename is %s\n", filenameRead);
+                            packetOut = makeResCPacket(packetIn);
+                        } else {
+                            packetOut = makePacket('U', 0, packetNum(packetIn), NULL);
                         }
-                        
-
+                        free(filenameRead);
                         break;
                     }
                 case 'B':
@@ -165,20 +181,13 @@ main(int argc, char *argv[]) {
                                     (fileData[filename])[offset + byte] = fileContent[byte];
                                 }
                             }
+
+
+                            packetOut = makeResBPacket(packetIn);
+                        } else {
+                            packetOut = makePacket('U', 0, packetNum(packetIn), NULL);
                         }
 
-                        // cout << "First char in packet " << packetNum(packetIn) << ": " << *fileContent << endl;
-                        (void) fileContent;
-                        (void) offset;
-
-                        // temp
-                        packetOut = makeResBPacket(packetIn);
-
-                        // // after filename is parsed from the B packet
-                        // if (filename != filenameRead) break;
-                        // // otherwise just add to fileContent + offset based on parsing of the B packet
-                        // fileContent + offset = fileContentParsed
-                        // packetOut = makeResBPacket(packetIn);
                         break;
                     }
                 default:

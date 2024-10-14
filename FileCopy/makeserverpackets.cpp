@@ -25,7 +25,7 @@ using namespace std;
 ***********************************************************/
 packet 
 makeHashPacket(packet incomingPacket, unsigned char obuff [20]) {
-    int fNameLen = packetLength(incomingPacket) - 1;
+    int fNameLen = packetLength(incomingPacket) - 5;
     int contentLength = 20 + fNameLen;
     int packetNumber = packetNum(incomingPacket);
 
@@ -34,7 +34,7 @@ makeHashPacket(packet incomingPacket, unsigned char obuff [20]) {
 
     // populate packet content with hash followed by filename
     for (int j = 0; j < contentLength; j++) {
-        outgoingContent[j] = j < 20 ? obuff[j] : incomingContent[j-20];
+        outgoingContent[j] = j < 20 ? obuff[j] : incomingContent[j - 20];
     }
 
     // return a hash packet
@@ -184,5 +184,6 @@ parseBytesFilename(packet packet) {
     filename[filenameLen] = '\0';
 
     string filenameStr(filename);
+    free(filename);
     return filenameStr;
 }

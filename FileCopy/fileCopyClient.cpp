@@ -29,6 +29,7 @@ const int MAX_PACKET_NUM   = 0x3FFF;
 void checkDirectory(char *dirname);
 bool parseHash(packet hashPacket, char *currFilename, unsigned char *parsedHash);
 
+
 int 
 main(int argc, char *argv[]) {
 
@@ -74,7 +75,41 @@ main(int argc, char *argv[]) {
             // PREP PACKET C
             // get file information
             unsigned char *fileContent;
-            ssize_t bytesRead = readFile(argv[SRC_DIR], filename, atoi(argv[FILE_NAST_ARG]), &fileContent);
+            // ssize_t bytesRead = readFile(argv[SRC_DIR], filename, atoi(argv[FILE_NAST_ARG]), &fileContent);
+
+            struct stat statbuf;
+            size_t sourceSize;
+            size_t bytesRead;
+            string sourceFile = makeFileName(argv[SRC_DIR], filename);
+
+            if (!isFile(sourceFile)) {
+                cerr << "Input file " << sourceFile << " is a directory or other non-regular file. Skipping" << endl;
+                continue;
+            }
+
+            if (lstat(sourceFile.c_str(), &statbuf) != 0) {
+                fprintf(stderr,"copyFile: Error stating supplied source file %s\n", sourceFile.c_str());
+                continue;
+            }
+
+            sourceSize = statbuf.st_size;
+            fileContent = (unsigned char *)malloc(sourceSize);
+            NASTYFILE inputFile(atoi(argv[FILE_NAST_ARG]));
+
+            while (inputFile.fopen(sourceFile.c_str(), "rb") == NULL) {
+                cerr << "Error opening input file " << sourceFile << 
+                    " errno=" << strerror(errno) << endl;
+            }
+
+            do {
+                bytesRead = inputFile.fread(fileContent, 1, sourceSize);
+            } while (bytesRead != sourceSize);
+        
+            while (inputFile.fclose() != 0 ) {
+                cerr << "Error closing input file " << sourceFile << 
+                " errno=" << strerror(errno) << endl;
+            }
+
             // unsigned int bytesReadSize = sizeof(bytesRead);
             // unsigned char bytesReadCharRep[bytesReadSize];
             // for (unsigned int offset = 0; offset < bytesReadSize; offset++) {
@@ -121,7 +156,7 @@ main(int argc, char *argv[]) {
                 attempts++; 
             }
             
-            int offset = 0;
+            unsigned int offset = 0;
             int bytesToSend = MAX_READ - strlen(filename);
             packet bytePacket = NULL;
 
@@ -312,8 +347,19 @@ parseHash(packet hashPacket, char *currFilename, unsigned char *parsedHash) {
     // compare filenamepacket with currFilename
     return strcmp((const char *) currFilename, (const char *) packetsFilename) == 0;
 }
+/*
+string
+makeFileName(string dir, string name) {
+  stringstream ss;
 
-
+  ss << dir;
+  // make sure dir name ends in /
+  if (dir.substr(dir.length()-1,1) != "/")
+    ss << '/';
+  ss << name;     // append file name to dir
+  return ss.str();  // return dir/name
+}
+*/
 
 // create DS (hashtable-like) filename -> *fileContent
 // every time we receive a B packet, we parse and fill in the specific part in fileContent
