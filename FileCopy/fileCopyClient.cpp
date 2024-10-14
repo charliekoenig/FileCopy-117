@@ -59,7 +59,7 @@ main(int argc, char *argv[]) {
     try {
         C150DgmSocket *sock = new C150DgmSocket();
         sock -> setServerName(argv[SERVER_ARG]);
-        sock -> turnOnTimeouts(3000);
+        sock -> turnOnTimeouts(500);
 
         // loop for each file in the given directory
         while ((sourceFile = readdir(SRC)) != NULL) {
@@ -163,15 +163,15 @@ main(int argc, char *argv[]) {
                     sock -> write(bytePacketString, packetLen);
 
                     sock -> read(incomingMessage, sizeof(incomingMessage));
-                    response = stringToPacket((unsigned char *)incomingMessage);
+                    if (!(sock -> timedout())) {
+                        response = stringToPacket((unsigned char *)incomingMessage);
 
-                    // cout << "packetNum(response) - initialPacketNum: " << packetNum(response) - initialPacketNum << endl;
-                    // cout << "numPackets: " << numPackets << endl;
-
-                    if (((packetNum(response) - initialPacketNum) < numPackets) && ((packetNum(response) - initialPacketNum) >= 0)) {
-                        if (unAcked[packetNum(response) - initialPacketNum] != NULL) {
-                            freePacket(unAcked[packetNum(response) - initialPacketNum]);
-                            unAcked[packetNum(response) - initialPacketNum] = NULL;
+                        int packetIndex = packetNum(response) - initialPacketNum;
+                        if (((packetIndex) < numPackets) && ((packetIndex) >= 0)) {
+                            if (unAcked[packetIndex] != NULL) {
+                                freePacket(unAcked[packetIndex]);
+                                unAcked[packetIndex] = NULL;
+                            }
                         }
                     }
                 }
@@ -179,23 +179,41 @@ main(int argc, char *argv[]) {
                 bytePacket = NULL;
             }
 
-
             packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
             free(fileContent);
 
-            // unsigned char parsedHash[20];
-            // parseHash(response, fileName, parsedHash);
-            // for (int k = 0; k < 20; k++) {
-            //     printf("%02x", parsedHash[k]);
-            // }
-            // cout << endl;
+            // send file check packet to server
+            packet fileCheckPacket = makeFilecheckPacket(filename, packetNumber);
+            char *fileCheckPacketString = packetToString(fileCheckPacket);
+            packetLen = packetLength(fileCheckPacket);
 
-            // unsigned char *fileContent;
-            // ssize_t bytesRead = readFile(argv[SRC_DIR], fileName, atoi(argv[FILE_NAST_ARG]), &fileContent);
+            noResponse = unexpectedPacket = true;
+            while (noResponse || unexpectedPacket) {
+                sock -> write(fileCheckPacketString, packetLen);
+                sock -> read(incomingMessage, sizeof(incomingMessage));
+                noResponse = sock -> timedout();
+
+                if (!noResponse) {
+                    response = stringToPacket((unsigned char *)incomingMessage);
+                    unexpectedPacket = (packetOpcode(response) != 'H' ||
+                                        packetNum(response) != packetNumber);
+                }
+            }
+
+            unsigned char parsedHash[20];
+            parseHash(response, filename, parsedHash);
+                // for (int k = 0; k < 20; k++) {
+                //     printf("%02x", parsedHash[k]);
+                // }
+                // cout << endl;
+
+            // we already have this
+                // unsigned char *fileContent;
+                // ssize_t bytesRead = readFile(argv[SRC_DIR], fileName, atoi(argv[FILE_NAST_ARG]), &fileContent);
             
-            // unsigned char obuff[20];
-            // SHA1((const unsigned  char *)fileContent, bytesRead, obuff);
-            // free(fileContent);
+            unsigned char obuff[20];
+            SHA1((const unsigned  char *)fileContent, bytesRead, obuff);
+            free(fileContent);
             // printf("Client Hash: ");
             // for (int k = 0; k < 20; k++) {
             //     printf("%02x", obuff[k]);
@@ -304,3 +322,5 @@ parseHash(packet hashPacket, char *currFilename, unsigned char *parsedHash) {
 // resB, integrating the endtoend to filecopy
 
 // dealing with file nastiness (entirety of monday meet)
+
+// optimization flags to the compiler
