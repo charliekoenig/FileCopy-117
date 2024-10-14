@@ -176,7 +176,7 @@ main(int argc, char *argv[]) {
                     bytePacket = makeBytePacket(offset, filename, fileContent, packetNumber, bytesToSend, strlen(filename));
                     expectedAcks.push_back(packetNumber);
                     unAcked[packetNumber - initialPacketNum] = bytePacket;
-                    
+                    // cout << "Sending " << bytesToSend << " bytes at offset " << offset << " for file " << filename << endl;
                     offset += bytesToSend;
                     packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
                 } else {
@@ -202,11 +202,13 @@ main(int argc, char *argv[]) {
                     if (!(sock -> timedout())) {
                         response = stringToPacket((unsigned char *)incomingMessage);
 
-                        int packetIndex = packetNum(response) - initialPacketNum;
-                        if (((packetIndex) < numPackets) && ((packetIndex) >= 0)) {
-                            if (unAcked[packetIndex] != NULL) {
-                                freePacket(unAcked[packetIndex]);
-                                unAcked[packetIndex] = NULL;
+                        if ((packetOpcode(response) == 'R') && (packetContent(response)[0] == 'B')) {
+                            int packetIndex = packetNum(response) - initialPacketNum;
+                            if (((packetIndex) < numPackets) && ((packetIndex) >= 0)) {
+                                if (unAcked[packetIndex] != NULL) {
+                                    freePacket(unAcked[packetIndex]);
+                                    unAcked[packetIndex] = NULL;
+                                }
                             }
                         }
                     }

@@ -38,11 +38,11 @@ main(int argc, char *argv[]) {
     int fileNastiness   = atoi(argv[FILE_NAST_ARG]);
 
     unordered_map<string, unsigned char *> fileData;
+    unordered_map<string, ssize_t> fileLengths;
     unordered_set<string> fileCopyData;
     int i = 0;
     try {
         C150DgmSocket *sock = new C150NastyDgmSocket(serverNastiness);
-        ssize_t totalBytes = 0;
         while(1) {
             readLen = sock -> read(incoming, sizeof(incoming));
             if (readLen == 0) {
@@ -59,23 +59,23 @@ main(int argc, char *argv[]) {
             switch (packetOpcode(packetIn)) {
                 case 'F':
                 {
-                    string fName(packetContent(packetIn));
-                    *GRADING << "File: " << fName << " received, beginning end-to-end check" << endl;
+                    string fname(packetContent(packetIn));
+                    *GRADING << "File: " << fname << " received, beginning end-to-end check" << endl;
                     
                     // read file from client, set fContent to file data
                     // unsigned char *fContent;
-                    // ssize_t fContentLen = readFile(argv[TARGET_DIR], fName, fileNastiness, &fContent);
+                    // ssize_t fContentLen = readFile(argv[TARGET_DIR], fname, fileNastiness, &fContent);
 
                     NASTYFILE outputFile(fileNastiness);
-                    string targetName = makeTMPFileName(argv[TARGET_DIR], fName);
+                    string targetName = makeTMPFileName(argv[TARGET_DIR], fname);
 
                     unsigned char hashTMP[20];
                     unsigned char obuff[20];
 
-                    if (fileData[fName] == NULL) {
+                    if (fileData[fname] == NULL) {
                         packetOut = makePacket('U', 0, packetNum(packetIn), NULL);
                     } else {
-                        SHA1((const unsigned char *)fileData[fName], totalBytes, obuff);
+                        SHA1((const unsigned char *)fileData[fname], fileLengths[fname], obuff);
                         
                         // redo the entire write if hashes are different
                         int currAttempt = 1;
@@ -86,7 +86,7 @@ main(int argc, char *argv[]) {
                                     " errno=" << strerror(errno) << endl;
                             }
 
-                            while ((int) outputFile.fwrite(fileData[fName], 1, totalBytes) != totalBytes) {
+                            while ((int) outputFile.fwrite(fileData[fname], 1, fileLengths[fname]) != fileLengths[fname]) {
                                 cerr << "Error writing file " << targetName << 
                                     "  errno=" << strerror(errno) << endl;
                             }
@@ -102,9 +102,9 @@ main(int argc, char *argv[]) {
                                     " errno=" << strerror(errno) << endl;
                             }
 
-                            char *readFromTMP = (char *)malloc(totalBytes);
+                            char *readFromTMP = (char *)malloc(fileLengths[fname]);
 
-                            while ((int) outputFile.fread(readFromTMP, 1, totalBytes) != totalBytes) {
+                            while ((ssize_t) outputFile.fread(readFromTMP, 1, fileLengths[fname]) != fileLengths[fname]) {
                                 cerr << "Error reading file " << targetName << 
                                     "  errno=" << strerror(errno) << endl;
                             }
@@ -118,7 +118,7 @@ main(int argc, char *argv[]) {
                             currAttempt += 1;
 
                             // compare hashes of filecontent and readFromTMP
-                            SHA1((const unsigned char *)readFromTMP, totalBytes, hashTMP);
+                            SHA1((const unsigned char *)readFromTMP, fileLengths[fname], hashTMP);
                             free(readFromTMP);
                         } while (!(strncmp((const char *) hashTMP, (const char *) obuff, 20) == 0));
 
@@ -132,18 +132,20 @@ main(int argc, char *argv[]) {
                 }
                 case 'S':
                 {
-                    string fName(packetContent(packetIn) + 1);
+                    string fname(packetContent(packetIn) + 1);
                     if (packetContent(packetIn)[0] == 'S') {
-                        *GRADING << "File: " << fName << " end-to-end check succeeded" << endl;
+                        *GRADING << "File: " << fname << " end-to-end check succeeded" << endl;
+                        cout<< "File: " << fname << " end-to-end check succeeded" << endl;
                     } else if (packetContent(packetIn)[0] == 'F') {
-                        *GRADING << "File: " << fName << " end-to-end check failed" << endl;
+                        *GRADING << "File: " << fname << " end-to-end check failed" << endl;
+                        cout << "File: " << fname << " end-to-end check failed" << endl;
                     }
 
-                    if (fileData[fName] == NULL) {
+                    if (fileData[fname] == NULL) {
                         packetOut = makePacket('U', 0, packetNum(packetIn), NULL);
                     } else {
-                        free(fileData[fName]);
-                        fileData[fName] = NULL;
+                        free(fileData[fname]);
+                        fileData[fname] = NULL;
 
                         packetOut = makeAckPacket(packetIn);
                     }
@@ -154,12 +156,12 @@ main(int argc, char *argv[]) {
                     {
                         // malloc the bytes based on the parseCpacket
                         char *filenameRead = NULL;
-                        totalBytes = parseCPacket(packetIn, &filenameRead);
+                        ssize_t totalBytes = parseCPacket(packetIn, &filenameRead);
                         string filenameReadString(filenameRead);
                         
                         if (fileData[filenameReadString] == NULL) {
                             fileData[filenameReadString] = (unsigned char *)malloc(totalBytes);
-                            printf("filename is %s\n", filenameRead);
+                            fileLengths[filenameReadString] = totalBytes;
                             packetOut = makeResCPacket(packetIn);
                         } else {
                             packetOut = makePacket('U', 0, packetNum(packetIn), NULL);
@@ -176,6 +178,7 @@ main(int argc, char *argv[]) {
 
                         if (fileData[filename] != NULL) {
                             if (fileCopyData.count(filename + to_string(offset)) == 0) {
+                                // cout << "Adding " << bytesRead << " bytes at offset " << offset << " for " << filename << endl;
                                 fileCopyData.insert(filename + to_string(offset));
                                 for (int byte = 0; byte < bytesRead; byte++) {
                                     (fileData[filename])[offset + byte] = fileContent[byte];
