@@ -31,7 +31,7 @@
 #
 
 # Do all C++ compies with g++
-CPP = g++
+CPP = g++ -Ofast
 CPPFLAGS = -g -Wall -Werror -I$(C150LIB)
 
 # Where the COMP 150 shared utilities live, including c150ids.a and userports.csv

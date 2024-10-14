@@ -11,6 +11,7 @@
 #include <cerrno>
 #include <iostream>
 #include <unordered_set>
+#include <openssl/sha.h>
 
 using namespace C150NETWORK;
 using namespace std;
@@ -18,6 +19,8 @@ using namespace std;
 const int NETWORK_NAST_ARG = 1;
 const int FILE_NAST_ARG    = 2;
 const int TARGET_DIR       = 3;
+
+string makeTMPFileName(string dir, string name);
 
 int
 main(int argc, char *argv[]) {
@@ -33,13 +36,13 @@ main(int argc, char *argv[]) {
     char incoming[512];
     int serverNastiness = atoi(argv[NETWORK_NAST_ARG]);
     int fileNastiness   = atoi(argv[FILE_NAST_ARG]);
-    char *targetDir = argv[TARGET_DIR];
 
     unordered_map<string, unsigned char *> fileData;
     unordered_set<string> fileCopyData;
     int i = 0;
     try {
         C150DgmSocket *sock = new C150NastyDgmSocket(serverNastiness);
+        ssize_t totalBytes = 0;
         while(1) {
             readLen = sock -> read(incoming, sizeof(incoming));
             if (readLen == 0) {
@@ -60,17 +63,61 @@ main(int argc, char *argv[]) {
                     *GRADING << "File: " << fName << " received, beginning end-to-end check" << endl;
                     
                     // read file from client, set fContent to file data
-                    unsigned char *fContent;
-                    ssize_t fContentLen = readFile(argv[TARGET_DIR], fName, fileNastiness, &fContent);
+                    // unsigned char *fContent;
+                    // ssize_t fContentLen = readFile(argv[TARGET_DIR], fName, fileNastiness, &fContent);
 
-                    if (fContentLen == -1) { 
-                        // TODO: Handle -> Resend request packet? -> error cases in readFile
-                        cerr << "Error while reading " << fName << endl; 
-                    } else {
-                        packetOut = makeHashPacket(packetIn, fContent, fContentLen);
-                        free(fContent);
-                    }
+                    NASTYFILE outputFile(fileNastiness);
+                    string targetName = makeTMPFileName(argv[TARGET_DIR], fName);
+
+                    unsigned char hashTMP[20];
+                    unsigned char obuff[20];
+                    SHA1((const unsigned char *)fileData[fName], totalBytes, obuff);
                     
+                    // redo the entire write if hashes are different
+                    do {
+                        // write to TMP file since file copy is done
+                        while (outputFile.fopen(targetName.c_str(), "wb") == NULL) {
+                            cerr << "Error opening input file " << targetName << 
+                                " errno=" << strerror(errno) << endl;
+                        }
+
+                        while ((int) outputFile.fwrite(fileData[fName], 1, totalBytes) != totalBytes) {
+                            cerr << "Error writing file " << targetName << 
+                                "  errno=" << strerror(errno) << endl;
+                        }
+
+                        
+                        while (outputFile.fclose() != 0) {
+                            cerr << "Error closing output file " << targetName << 
+                                " errno=" << strerror(errno) << endl;
+                        }
+
+                        // read from TMP file for end to end check
+                        while (outputFile.fopen(targetName.c_str(), "rb") == NULL) {
+                            cerr << "Error opening input file " << targetName << 
+                                " errno=" << strerror(errno) << endl;
+                        }
+
+                        char *readFromTMP = (char *)malloc(totalBytes);
+
+                        while ((int) outputFile.fread(readFromTMP, 1, totalBytes) != totalBytes) {
+                            cerr << "Error reading file " << targetName << 
+                                "  errno=" << strerror(errno) << endl;
+                        }
+                        
+                        while (outputFile.fclose() != 0) {
+                            cerr << "Error closing output file " << targetName << 
+                                " errno=" << strerror(errno) << endl;
+                        }
+
+                        // compare hashes of filecontent and readFromTMP
+                        SHA1((const unsigned char *)readFromTMP, totalBytes, hashTMP);
+                    } while (!(strncmp((const char *) hashTMP, (const char *) obuff, 20) == 0));
+
+
+                    // todo: server keeps track of all hashes it has computed thus far
+                    //       to deal with a possible drop of a H packet that would make the C resend F
+                    packetOut = makeHashPacket(packetIn, hashTMP);
                     break;
                 }
                 case 'S':
@@ -90,18 +137,8 @@ main(int argc, char *argv[]) {
                         packetOut = makeResCPacket(packetIn);
                         // malloc the bytes based on the parseCpacket
                         char *filenameRead = NULL;
-                        ssize_t totalBytes = parseCPacket(packetIn, &filenameRead);
-                        // create TMP file
-                        /*
-                            actually, it might be easier to write to the TMP file each time
-                            i think we were concerned abt the time aspect of it though...
-                        */
-                        ofstream fileTMP;
-                        char filenameTMP[strlen(filenameRead) + strlen(targetDir) + 6];
-                        snprintf(filenameTMP, sizeof(filenameTMP), "%s/%s.TMP", targetDir, filenameRead);
-                        fileTMP.open(filenameTMP);
-                        fileTMP << "testing for " << filenameRead << endl;
-                        fileTMP.close();
+                        totalBytes = parseCPacket(packetIn, &filenameRead);
+                        
 
                         // filenameread wont be freed til this one is done
                         
@@ -163,4 +200,18 @@ main(int argc, char *argv[]) {
     }
 
     return 0;
+}
+
+string
+makeTMPFileName(string dir, string name) {
+  stringstream ss;
+
+  ss << dir;
+  // make sure dir name ends in /
+  if (dir.substr(dir.length()-1,1) != "/")
+    ss << '/';
+  ss << name;     // append file name to dir
+  ss << ".TMP";
+  return ss.str();  // return dir/name
+  
 }

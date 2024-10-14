@@ -24,17 +24,13 @@ using namespace std;
     * Uses SHA1 function to hash the *fileContent
 ***********************************************************/
 packet 
-makeHashPacket(packet incomingPacket, unsigned char *fileContent, size_t fContentLen) {
+makeHashPacket(packet incomingPacket, unsigned char obuff [20]) {
     int fNameLen = packetLength(incomingPacket) - 1;
     int contentLength = 20 + fNameLen;
     int packetNumber = packetNum(incomingPacket);
 
     char outgoingContent[contentLength];
     char *incomingContent = packetContent(incomingPacket);
-
-    // Output buffer populated with SHA1 hash
-    unsigned char obuff[20];
-    SHA1((const unsigned char *)fileContent, fContentLen, obuff);
 
     // populate packet content with hash followed by filename
     for (int j = 0; j < contentLength; j++) {

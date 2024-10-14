@@ -35,7 +35,7 @@ makeStatusPacket(char *serverHash, char *clientHash, char *filename, int packetN
 }
 
 packet 
-makeFilecheckPacket(char *filename, int packetNumber) {
+makeFileCheckPacket(char *filename, int packetNumber) {
     return makePacket('F', strlen(filename), packetNumber, filename);
 }
 

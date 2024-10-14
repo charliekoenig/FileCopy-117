@@ -53,7 +53,7 @@ main(int argc, char *argv[]) {
     char *filename;
     char incomingMessage[512];
     int packetNumber = 0;
-    packet response;
+    packet response = NULL;
 
     // TODO: clean this up
     try {
@@ -125,6 +125,7 @@ main(int argc, char *argv[]) {
             int bytesToSend = MAX_READ - strlen(filename);
             packet bytePacket = NULL;
 
+            // todo it might be that the packet number went back to 0 so it might be messing with the results
             int initialPacketNum = packetNumber;
             int numPackets = ceil((float) bytesRead / (float) bytesToSend);
             packet unAcked[numPackets] = {};
@@ -180,10 +181,9 @@ main(int argc, char *argv[]) {
             }
 
             packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
-            free(fileContent);
 
             // send file check packet to server
-            packet fileCheckPacket = makeFilecheckPacket(filename, packetNumber);
+            packet fileCheckPacket = makeFileCheckPacket(filename, packetNumber);
             char *fileCheckPacketString = packetToString(fileCheckPacket);
             packetLen = packetLength(fileCheckPacket);
 
@@ -200,63 +200,62 @@ main(int argc, char *argv[]) {
                 }
             }
 
-            unsigned char parsedHash[20];
-            parseHash(response, filename, parsedHash);
-                // for (int k = 0; k < 20; k++) {
-                //     printf("%02x", parsedHash[k]);
-                // }
-                // cout << endl;
-
-            // we already have this
-                // unsigned char *fileContent;
-                // ssize_t bytesRead = readFile(argv[SRC_DIR], fileName, atoi(argv[FILE_NAST_ARG]), &fileContent);
-            
             unsigned char obuff[20];
             SHA1((const unsigned  char *)fileContent, bytesRead, obuff);
-            free(fileContent);
+            // free(fileContent);
+
             // printf("Client Hash: ");
             // for (int k = 0; k < 20; k++) {
             //     printf("%02x", obuff[k]);
             // }
             // cout << endl;
 
-            // char statusContent[strlen(fileName) + 1];
-            // statusContent[0] = (strncmp((const char *) parsedHash, (const char *) obuff, 20) == 0) ? 'S' : 'F';
+            unsigned char parsedHash[20];
+            parseHash(response, filename, parsedHash);
+
+            // printf("Server Hash: ");
+            // for (int k = 0; k < 20; k++) {
+            //     printf("%02x", parsedHash[k]);
+            // }
+            // cout << endl;
             
-            // for (size_t j = 1; j < strlen(fileName) + 1; j++) {
-            //     statusContent[j] = fileName[j-1];
-            // }
+            char statusContent[strlen(filename) + 1];
+            statusContent[0] = (strncmp((const char *) parsedHash, (const char *) obuff, 20) == 0) ? 'S' : 'F';
+            
+            for (size_t j = 1; j < strlen(filename) + 1; j++) {
+                statusContent[j] = filename[j-1];
+            }
 
-            // packet statusPacket = makePacket('S', strlen(fileName) + 1, packetNumber, statusContent);
-            // packetString = packetToString(statusPacket);
-            // packetLen = packetLength(statusPacket) + 3;
-            // freePacket(statusPacket);
+            packet statusPacket = makePacket('S', strlen(filename) + 1, packetNumber, statusContent);
+            char *statusPacketString = packetToString(statusPacket);
+            packetLen = packetLength(statusPacket) + 3;
+            freePacket(statusPacket);
 
-            // attempts = 0;
-            // noResponse = true, unexpectedPacket = true;
+            attempts = 0;
+            noResponse = true, unexpectedPacket = true;
 
-            // while (noResponse || unexpectedPacket) {
-            //     if (statusContent[0] == 'S') {
-            //         cout << "SUCCESS: " << fileName << endl;
-            //         *GRADING << "File: " << fileName << " end-to-end check succeeded, attempt " << attempts << endl;
-            //     } else if (statusContent[0] == 'F') {
-            //         cout << "FAILURE: " << fileName << endl;
-            //         *GRADING << "File: " << fileName << " end-to-end check failed, attempt " << attempts << endl;
-            //     }
+            while (noResponse || unexpectedPacket) {
+                if (statusContent[0] == 'S') {
+                    cout << "SUCCESS: " << filename << endl;
+                    // *GRADING << "File: " << filename << " end-to-end check succeeded, attempt " << attempts << endl;
+                } else if (statusContent[0] == 'F') {
+                    cout << "FAILURE: " << filename << endl;
+                    // *GRADING << "File: " << filename << " end-to-end check failed, attempt " << attempts << endl;
+                }
 
-            //     sock -> write(packetString, packetLen);
+                sock -> write(statusPacketString, packetLen);
 
-            //     sock -> read(incomingMessage, sizeof(incomingMessage));
-            //     noResponse = sock -> timedout();
+                sock -> read(incomingMessage, sizeof(incomingMessage));
+                noResponse = sock -> timedout();
 
-            //     if (!noResponse) {
-            //         response = stringToPacket(incomingMessage);
-            //         unexpectedPacket = (packetOpcode(response) != 'A' ||
-            //                             packetNum(response) != packetNumber);
-            //     }
-            //     attempts++; 
-            // }
-            // printf("Ack Response: %s\n", packetContent(response));
+                if (!noResponse) {
+                    response = stringToPacket((unsigned char *) incomingMessage);
+                    unexpectedPacket = (packetOpcode(response) != 'A' ||
+                                        packetNum(response) != packetNumber);
+                }
+                attempts++;
+            }
+            printf("Ack Response: %s\n", packetContent(response));
             // cout << "_______________________________" << endl;
             // packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
 

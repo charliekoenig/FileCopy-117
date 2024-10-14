@@ -3,7 +3,7 @@
 
 using namespace std;
 
-packet makeHashPacket(packet incomingPacket, unsigned char *fileContent, size_t fContentLen);
+packet makeHashPacket(packet incomingPacket, unsigned char obuff [20]);
 packet makeAckPacket(packet incomingPacket);
 packet makeResCPacket(packet incomingPacket);
 packet makeResBPacket(packet incomingPacket);
