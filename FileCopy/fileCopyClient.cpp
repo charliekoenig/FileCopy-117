@@ -12,6 +12,8 @@
 #include <cerrno>
 #include <iostream>
 #include <openssl/sha.h>
+#include <cmath>
+#include <list>
 
 using namespace std;
 using namespace C150NETWORK;
@@ -112,7 +114,8 @@ main(int argc, char *argv[]) {
                 if (!noResponse) {
                     response = stringToPacket((unsigned char *)incomingMessage);
                     unexpectedPacket = (packetOpcode(response) != 'R' ||
-                                        packetNum(response) != packetNumber);
+                                        packetNum(response) != packetNumber ||
+                                        packetContent(response)[0] != 'C');
                 }
                 
                 attempts++; 
@@ -121,27 +124,59 @@ main(int argc, char *argv[]) {
             int offset = 0;
             int bytesToSend = MAX_READ - strlen(filename);
             packet bytePacket = NULL;
-            while (offset < bytesRead) {
-                if (bytesRead < (bytesToSend + offset)) {
-                    bytesToSend = bytesRead - offset;
-                } 
 
-                bytePacket = makeBytePacket(offset, filename, fileContent, packetNumber, bytesToSend, strlen(filename));
-                char *bytePacketString = packetToString(bytePacket);
-                int packetLen = packetLength(bytePacket);
-                sock -> write(bytePacketString, packetLen);
+            int initialPacketNum = packetNumber;
+            int numPackets = ceil((float) bytesRead / (float) bytesToSend);
+            packet unAcked[numPackets] = {};
 
-                sock -> read(incomingMessage, sizeof(incomingMessage));
-                noResponse = sock -> timedout();
+            list<int> expectedAcks;
 
-                // create a queue with every packet to be sent
-                // pop from queue and send, add to map with {expected response -> packet}
-                // if response maps to a packet, free packet and remove pair
-                // when queue is empty iterate through map and continue trying
+            while ((offset < bytesRead) || !expectedAcks.empty()) {
+                if (offset < bytesRead) {
+                    if (bytesRead < (bytesToSend + offset)) {
+                        bytesToSend = bytesRead - offset;
+                    } 
 
-                (void) bytePacket;
-                offset += bytesToSend;
-                packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
+                    bytePacket = makeBytePacket(offset, filename, fileContent, packetNumber, bytesToSend, strlen(filename));
+                    expectedAcks.push_back(packetNumber);
+                    unAcked[packetNumber - initialPacketNum] = bytePacket;
+                    
+                    offset += bytesToSend;
+                    packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
+                } else {
+                    int next = 0;
+                    
+                    while ((!expectedAcks.empty()) && (bytePacket == NULL)) {
+                        next = expectedAcks.front();
+                        if ((unAcked[next - initialPacketNum] == NULL)) {
+                            expectedAcks.pop_front();
+                        } else {
+                            bytePacket = unAcked[next - initialPacketNum];
+                        }
+                    }
+
+                }
+
+                if (bytePacket != NULL) {
+                    char *bytePacketString = packetToString(bytePacket);
+                    int packetLen = packetLength(bytePacket);
+                    sock -> write(bytePacketString, packetLen);
+
+                    sock -> read(incomingMessage, sizeof(incomingMessage));
+                    response = stringToPacket((unsigned char *)incomingMessage);
+
+                    // cout << "packetNum(response) - initialPacketNum: " << packetNum(response) - initialPacketNum << endl;
+                    // cout << "numPackets: " << numPackets << endl;
+
+                    if (((packetNum(response) - initialPacketNum) < numPackets) && ((packetNum(response) - initialPacketNum) >= 0)) {
+                        if (unAcked[packetNum(response) - initialPacketNum] != NULL) {
+                            freePacket(unAcked[packetNum(response) - initialPacketNum]);
+                            unAcked[packetNum(response) - initialPacketNum] = NULL;
+                        }
+                    }
+                }
+
+                bytePacket = NULL;
             }
 
 
@@ -260,3 +295,12 @@ parseHash(packet hashPacket, char *currFilename, unsigned char *parsedHash) {
     // compare filenamepacket with currFilename
     return strcmp((const char *) currFilename, (const char *) packetsFilename) == 0;
 }
+
+
+
+// create DS (hashtable-like) filename -> *fileContent
+// every time we receive a B packet, we parse and fill in the specific part in fileContent
+
+// resB, integrating the endtoend to filecopy
+
+// dealing with file nastiness (entirety of monday meet)

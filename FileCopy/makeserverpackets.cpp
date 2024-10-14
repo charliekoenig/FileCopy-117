@@ -99,6 +99,27 @@ makeResCPacket(packet incomingPacket) {
     return makePacket('R', filenameLength + 1, packetNumber, cAndFilename);
 }
 
+/**********************************************************
+ * Function: makeResBPacket
+
+ * Parameters: 
+    * packet incomingPacket -> Message from client encoded 
+                               as a packet struct
+
+ * Return: A response packet acknowledging the byte packet
+
+ * Notes: 
+    * Allocates memory for return packet that must be freed 
+      by caller
+***********************************************************/
+packet 
+makeResBPacket(packet incomingPacket) {
+    int packetNumber = packetNum(incomingPacket);
+
+    char content[1] = {'B'};
+
+    return makePacket('R', 1, packetNumber, content);
+}
 
 ssize_t
 parseCPacket(packet packet, char **fileName) {
@@ -153,4 +174,19 @@ parseBytesContent(packet packet, int bytesRead) {
     char *data = packetContent(packet);
 
     return &(data[contentStart]);
+}
+
+string
+parseBytesFilename(packet packet) {
+    char *packetBContent = packetContent(packet);
+    int filenameLen = packetBContent[3];
+    char *filename = (char *)malloc(filenameLen + 1);
+
+    for (int i = 0; i < filenameLen; i++) {
+        filename[i] = packetBContent[i + 4];
+    }
+    filename[filenameLen] = '\0';
+
+    string filenameStr(filename);
+    return filenameStr;
 }

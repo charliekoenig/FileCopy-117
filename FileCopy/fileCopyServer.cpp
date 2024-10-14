@@ -10,8 +10,10 @@
 #include <cstring>
 #include <cerrno>
 #include <iostream>
+#include <unordered_set>
 
 using namespace C150NETWORK;
+using namespace std;
 
 const int NETWORK_NAST_ARG = 1;
 const int FILE_NAST_ARG    = 2;
@@ -33,6 +35,8 @@ main(int argc, char *argv[]) {
     int fileNastiness   = atoi(argv[FILE_NAST_ARG]);
     char *targetDir = argv[TARGET_DIR];
 
+    unordered_map<string, unsigned char *> fileData;
+    unordered_set<string> fileCopyData;
     int i = 0;
     try {
         C150DgmSocket *sock = new C150NastyDgmSocket(serverNastiness);
@@ -47,8 +51,6 @@ main(int argc, char *argv[]) {
             // convert incoming file check request packet to a string
             packet packetIn = stringToPacket((unsigned char *)incoming);
             packet packetOut = NULL;
-
-            char *fileContent = NULL;
 
             // handles one read which is capable of handling any type of packet 
             switch (packetOpcode(packetIn)) {
@@ -102,10 +104,14 @@ main(int argc, char *argv[]) {
                         fileTMP.close();
 
                         // filenameread wont be freed til this one is done
-                        free(filenameRead);
-                        // free filecontent before the next request (next file)
-                        fileContent = (char *)malloc(totalBytes);
-                        free(fileContent);
+                        
+                        
+                        if (fileData[filenameRead] == NULL) {
+                            fileData[filenameRead] = (unsigned char *)malloc(totalBytes);
+                            printf("filename is %s\n", filenameRead);
+                        }
+                        
+
                         break;
                     }
                 case 'B':
@@ -113,13 +119,23 @@ main(int argc, char *argv[]) {
                         int offset = parseByteOffset(packetIn);
                         int bytesRead = parseBytesRead(packetIn);
                         char *fileContent = parseBytesContent(packetIn, bytesRead);
+                        string filename = parseBytesFilename(packetIn);
 
-                        cout << "First char in packet " << packetNum(packetIn) << ": " << *fileContent << endl;
+                        if (fileData[filename] != NULL) {
+                            if (fileCopyData.count(filename + to_string(offset)) == 0) {
+                                fileCopyData.insert(filename + to_string(offset));
+                                for (int byte = 0; byte < bytesRead; byte++) {
+                                    (fileData[filename])[offset + byte] = fileContent[byte];
+                                }
+                            }
+                        }
+
+                        // cout << "First char in packet " << packetNum(packetIn) << ": " << *fileContent << endl;
                         (void) fileContent;
                         (void) offset;
 
                         // temp
-                        packetOut = makePacket('U', 0, packetNum(packetIn), NULL);
+                        packetOut = makeResBPacket(packetIn);
 
                         // // after filename is parsed from the B packet
                         // if (filename != filenameRead) break;
