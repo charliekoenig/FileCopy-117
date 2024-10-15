@@ -12,6 +12,8 @@
 #include <iostream>
 #include <unordered_set>
 #include <openssl/sha.h>
+#include <stdio.h>
+#include <cstdio>
 
 using namespace C150NETWORK;
 using namespace std;
@@ -132,9 +134,15 @@ main(int argc, char *argv[]) {
                     if (packetContent(packetIn)[0] == 'S') {
                         *GRADING << "File: " << fname << " end-to-end check succeeded" << endl;
                         cout<< "File: " << fname << " end-to-end check succeeded" << endl;
+
+                        // returns an int, do we want to do while?
+                        rename((const char *) makeTMPFileName(argv[TARGET_DIR], fname).c_str(), (const char *)makeFileName(argv[TARGET_DIR], fname).c_str());
                     } else if (packetContent(packetIn)[0] == 'F') {
                         *GRADING << "File: " << fname << " end-to-end check failed" << endl;
                         cout << "File: " << fname << " end-to-end check failed" << endl;
+
+                        // 0 means success
+                        remove((const char *) makeTMPFileName(argv[TARGET_DIR], fname).c_str());
                     }
 
                     if (fileData[fname] == NULL) {
