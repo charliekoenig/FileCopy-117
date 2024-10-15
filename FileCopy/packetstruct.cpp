@@ -9,10 +9,10 @@
 using namespace std;
 
 struct packetStruct {
-    char opcode;
-    unsigned int length;
-    unsigned int packetNum;
-    char *content;
+    char opcode;               // 8  bits
+    unsigned int length;       // 10 bits
+    unsigned int packetNum;    // 14 bits
+    char *content;             // 508 bytes
 };
 
 packet makePacket(char opcode, int contentLength, int packetNum, char *content) {

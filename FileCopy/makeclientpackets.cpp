@@ -22,7 +22,7 @@ makeCopyPacket(ssize_t fileLen, char *filename, int packetNumber) {
 }
 
 packet 
-makeStatusPacket(char *serverHash, char *clientHash, char *filename, int packetNumber) {
+makeStatusPacket(unsigned char *serverHash, unsigned char *clientHash, char *filename, int packetNumber) {
     int contentLength = strlen(filename) + 1;
     char content[contentLength];
 

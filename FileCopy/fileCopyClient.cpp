@@ -13,7 +13,6 @@
 #include <iostream>
 #include <openssl/sha.h>
 #include <cmath>
-#include <list>
 
 using namespace std;
 using namespace C150NETWORK;
@@ -29,23 +28,24 @@ const int MAX_PACKET_NUM   = 0x3FFF;
 void checkDirectory(char *dirname);
 bool parseHash(packet hashPacket, char *currFilename, unsigned char *parsedHash);
 
-
 int 
 main(int argc, char *argv[]) {
 
     GRADEME(argc, argv);
 
     if (argc != 5) {
-        cerr << "Correct syntax is " << argv[0] << " <server> <networknastiness> <filenastiness> <srcdir>" << endl;
+        cerr << "Correct syntax is " << argv[0] 
+             << " <server> <networknastiness> <filenastiness> <srcdir>" << endl;
+
         exit(1);
     }
 
+    // File to be transferred 
     struct dirent *sourceFile;
-    DIR *SRC;
 
     // make sure input given is a valid directory and open it
     checkDirectory(argv[SRC_DIR]);
-    SRC = opendir(argv[SRC_DIR]);
+    DIR *SRC = opendir(argv[SRC_DIR]);
     if (SRC == NULL) {
         fprintf(stderr,"Error opening source directory %s\n", argv[2]);     
         exit(8);
@@ -56,7 +56,6 @@ main(int argc, char *argv[]) {
     int packetNumber = 0;
     packet response = NULL;
 
-    // TODO: clean this up
     try {
         C150DgmSocket *sock = new C150DgmSocket();
         sock -> setServerName(argv[SERVER_ARG]);
@@ -64,8 +63,8 @@ main(int argc, char *argv[]) {
 
         // loop for each file in the given directory
         while ((sourceFile = readdir(SRC)) != NULL) {
-            filename = sourceFile -> d_name;
             // skip the . and .. names
+            filename = sourceFile -> d_name;
             if ((strcmp(filename, ".") == 0) || (strcmp(filename, "..")  == 0 )) 
                 continue;
 
@@ -74,21 +73,19 @@ main(int argc, char *argv[]) {
             
             // PREP PACKET C
             // get file information
-            unsigned char *fileContent;
-            // ssize_t bytesRead = readFile(argv[SRC_DIR], filename, atoi(argv[FILE_NAST_ARG]), &fileContent);
+            unsigned char *fileContent = NULL;
 
             struct stat statbuf;
             size_t sourceSize;
-            size_t bytesRead;
             string sourceFile = makeFileName(argv[SRC_DIR], filename);
 
             if (!isFile(sourceFile)) {
-                cerr << "Input file " << sourceFile << " is a directory or other non-regular file. Skipping" << endl;
+                cerr << sourceFile << " is a not a valid file. Skipping" << endl;
                 continue;
             }
 
             if (lstat(sourceFile.c_str(), &statbuf) != 0) {
-                fprintf(stderr,"copyFile: Error stating supplied source file %s\n", sourceFile.c_str());
+                fprintf(stderr, "copyFile: Error stating supplied source file %s\n", sourceFile.c_str());
                 continue;
             }
 
@@ -96,48 +93,34 @@ main(int argc, char *argv[]) {
             fileContent = (unsigned char *)malloc(sourceSize);
             NASTYFILE inputFile(atoi(argv[FILE_NAST_ARG]));
 
-            while (inputFile.fopen(sourceFile.c_str(), "rb") == NULL) {
-                cerr << "Error opening input file " << sourceFile << 
-                    " errno=" << strerror(errno) << endl;
-            }
+            void *filePtr    = NULL;
+            size_t bytesRead = 0;
+            int closeResult  = 0;
 
+            // open file, try until success
+            do {
+                filePtr = inputFile.fopen(sourceFile.c_str(), "rb");
+            } while (filePtr == NULL);
+
+            // read file, try until success
             do {
                 bytesRead = inputFile.fread(fileContent, 1, sourceSize);
             } while (bytesRead != sourceSize);
         
-            while (inputFile.fclose() != 0 ) {
-                cerr << "Error closing input file " << sourceFile << 
-                " errno=" << strerror(errno) << endl;
-            }
+            // close file, try until success
+            do {
+                closeResult = inputFile.fclose();
+            } while (closeResult != 0 );
 
-            // unsigned int bytesReadSize = sizeof(bytesRead);
-            // unsigned char bytesReadCharRep[bytesReadSize];
-            // for (unsigned int offset = 0; offset < bytesReadSize; offset++) {
-            //     bytesReadCharRep[bytesReadSize - 1 - offset] = ((bytesRead >> (offset * 8)) & ~0);
-            // }
 
-            // int cContentLen = strlen(filename) + bytesReadSize;
-            // char cContent[cContentLen];
-            // for (int k = 0; k < cContentLen; k++) {
-            //     if (k < (int) bytesReadSize) {
-            //         cContent[k] = bytesReadCharRep[k];
-            //     } else {
-            //         cContent[k] = filename[k - (int) bytesReadSize];
-            //     }
-            // }
 
-            // create packet and write to server
+            // Create packet alerting server of file to be copied
             packet fileInfoPacket = makeCopyPacket(bytesRead, filename, packetNumber);
-
             char *fileInfoPacketString = packetToString(fileInfoPacket);
-            
-            // char *filenameRead = NULL;
-            // parseCPacket(fileInfoPacket, &filenameRead);
-            // free(filenameRead);
             int packetLen = packetLength(fileInfoPacket);
             freePacket(fileInfoPacket);
 
-            // LOOP TIL CLIENT RECEVES R PACKET FOR C FROM SERVER
+            // Loop until server acknowledges C packet
             int attempts = 0;
             while (noResponse || unexpectedPacket) {
                 sock -> write(fileInfoPacketString, packetLen);
@@ -146,6 +129,7 @@ main(int argc, char *argv[]) {
                 sock -> read(incomingMessage, sizeof(incomingMessage));
                 noResponse = sock -> timedout();
 
+                // Confirm response was the expected packet
                 if (!noResponse) {
                     response = stringToPacket((unsigned char *)incomingMessage);
                     unexpectedPacket = (packetOpcode(response) != 'R' ||
@@ -155,26 +139,38 @@ main(int argc, char *argv[]) {
                 
                 attempts++; 
             }
+
+            // incremement packet number on success
+            packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
             
             unsigned int offset = 0;
             int bytesToSend = MAX_READ - strlen(filename);
             packet bytePacket = NULL;
 
             // todo it might be that the packet number went back to 0 so it might be messing with the results
+            // I switched the unanswered to an unordered map so this should fix this issue 
             int initialPacketNum = packetNumber;
             int numPackets = ceil((float) bytesRead / (float) bytesToSend);
-            packet unAcked[numPackets] = {};
 
-            list<int> expectedAcks;
+            unordered_map<int, packet> unAcked;
+            stack<int> expectedAcks;
 
             while ((offset < bytesRead) || !expectedAcks.empty()) {
                 if (offset < bytesRead) {
-                    if (bytesRead < (bytesToSend + offset)) {
-                        bytesToSend = bytesRead - offset;
-                    } 
 
-                    bytePacket = makeBytePacket(offset, filename, fileContent, packetNumber, bytesToSend, strlen(filename));
-                    expectedAcks.push_back(packetNumber);
+                    // Send less than total bytes if last packet in file
+                    // if (bytesRead < (bytesToSend + offset)) {
+                    //     bytesToSend = bytesRead - offset;
+                    // } 
+
+                    // switched to min function
+                    bytesToSend = min(bytesToSend, (int)(bytesRead - offset));
+
+                    bytePacket = makeBytePacket(offset, filename, fileContent, 
+                                                packetNumber, bytesToSend, 
+                                                strlen(filename));
+
+                    expectedAcks.push(packetNumber);
                     unAcked[packetNumber - initialPacketNum] = bytePacket;
                     // cout << "Sending " << bytesToSend << " bytes at offset " << offset << " for file " << filename << endl;
                     offset += bytesToSend;
@@ -183,9 +179,9 @@ main(int argc, char *argv[]) {
                     int next = 0;
                     
                     while ((!expectedAcks.empty()) && (bytePacket == NULL)) {
-                        next = expectedAcks.front();
+                        next = expectedAcks.top();
                         if ((unAcked[next - initialPacketNum] == NULL)) {
-                            expectedAcks.pop_front();
+                            expectedAcks.pop();
                         } else {
                             bytePacket = unAcked[next - initialPacketNum];
                         }
@@ -237,13 +233,13 @@ main(int argc, char *argv[]) {
                 }
             }
 
-            unsigned char obuff[20];
-            SHA1((const unsigned  char *)fileContent, bytesRead, obuff);
+            unsigned char localHash[20];
+            SHA1((const unsigned  char *)fileContent, bytesRead, localHash);
             // free(fileContent);
 
             // printf("Client Hash: ");
             // for (int k = 0; k < 20; k++) {
-            //     printf("%02x", obuff[k]);
+            //     printf("%02x", localHash[k]);
             // }
             // cout << endl;
 
@@ -257,15 +253,19 @@ main(int argc, char *argv[]) {
             // cout << endl;
             
             char statusContent[strlen(filename) + 1];
-            statusContent[0] = (strncmp((const char *) parsedHash, (const char *) obuff, 20) == 0) ? 'S' : 'F';
+            statusContent[0] = (strncmp((const char *) parsedHash, (const char *) localHash, 20) == 0) ? 'S' : 'F';
             
             for (size_t j = 1; j < strlen(filename) + 1; j++) {
                 statusContent[j] = filename[j-1];
             }
 
-            packet statusPacket = makePacket('S', strlen(filename) + 1, packetNumber, statusContent);
+            packet statusPacket = makeStatusPacket(parsedHash, localHash, filename, packetNumber);
+            // packet statusPacket = makePacket('S', strlen(filename) + 1, packetNumber, statusContent);
+
+            // printPacket(statusPacket2);
+            // printPacket(statusPacket);
             char *statusPacketString = packetToString(statusPacket);
-            packetLen = packetLength(statusPacket) + 3;
+            packetLen = packetLength(statusPacket);
             freePacket(statusPacket);
 
             attempts = 0;
