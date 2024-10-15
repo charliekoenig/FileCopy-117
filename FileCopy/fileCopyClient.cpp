@@ -137,11 +137,14 @@ main(int argc, char *argv[]) {
                     unexpectedPacket = (packetOpcode(response) != 'R' ||
                                         packetNum(response) != packetNumber ||
                                         packetContent(response)[0] != 'C');
+                    freePacket(response);
+                    response = NULL;
                 }
                 
                 attempts++; 
             }
 
+            free(fileInfoPacketString);
             packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
             
             /****  Send packets of file data to server ****/
@@ -156,6 +159,7 @@ main(int argc, char *argv[]) {
             stack<int> expectedAcks;
             packet bytePacket = NULL;
 
+            sock -> turnOnTimeouts(5);
             while ((offset < bytesRead) || !expectedAcks.empty()) {
                 if (offset < bytesRead) {
                     bytesToSend = min(bytesToSend, (int)(bytesRead - offset));
@@ -187,8 +191,35 @@ main(int argc, char *argv[]) {
                     int packetLen = packetLength(bytePacket);
 
                     sock -> write(bytePacketString, packetLen);
+                    
+                    // trying this
+                    do {
+                        sock -> read(incomingMessage, sizeof(incomingMessage));
+                        noResponse = sock -> timedout();
+
+                        if (!noResponse) {
+                            response = stringToPacket((unsigned char *)incomingMessage);
+
+                            if ((packetOpcode(response) == 'R') && (packetContent(response)[0] == 'B')) {
+                                int sentPacketNumber = packetNum(response);
+                                if (unAcked[sentPacketNumber] != NULL) {
+                                    freePacket(unAcked[sentPacketNumber]);
+                                    unAcked[sentPacketNumber] = NULL;
+                                }
+
+                            }
+
+                            if (response != NULL) {
+                                freePacket(response);
+                                response = NULL;
+                            }
+                        }
+                    } while (!noResponse);
+
+                    /*
                     sock -> read(incomingMessage, sizeof(incomingMessage));
                     noResponse = sock -> timedout();
+
                     if (!noResponse) {
                         response = stringToPacket((unsigned char *)incomingMessage);
 
@@ -198,23 +229,38 @@ main(int argc, char *argv[]) {
                                 freePacket(unAcked[sentPacketNumber]);
                                 unAcked[sentPacketNumber] = NULL;
                             }
+
+                            if (response != NULL) {
+                                freePacket(response);
+                                response = NULL;
+                            }
                         }
                     }
+                    */
+
+                    free(bytePacketString);
                 }
 
                 bytePacket = NULL;
             }
 
             packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
-
+            sock -> turnOnTimeouts(500);
 
             /****  Send packet to server requesting end-to-end check ****/
             packet fileCheckPacket = makeFileCheckPacket(filename, packetNumber);
             char *fileCheckPacketString = packetToString(fileCheckPacket);
             packetLen = packetLength(fileCheckPacket);
 
+            freePacket(fileCheckPacket);
+
             noResponse = unexpectedPacket = true;
             while (noResponse || unexpectedPacket) {
+                if (response != NULL) {
+                    freePacket(response);
+                    response = NULL;
+                }
+
                 sock -> write(fileCheckPacketString, packetLen);
                 sock -> read(incomingMessage, sizeof(incomingMessage));
                 noResponse = sock -> timedout();
@@ -226,6 +272,7 @@ main(int argc, char *argv[]) {
                 }
             }
 
+            free(fileCheckPacketString);
             packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
 
 
@@ -241,10 +288,20 @@ main(int argc, char *argv[]) {
             packetLen = packetLength(statusPacket);
             freePacket(statusPacket);
 
+            if (response != NULL) {
+                freePacket(response);
+                response = NULL;
+            }
+
             attempts = 0;
             noResponse = true, unexpectedPacket = true;
 
             while (noResponse || unexpectedPacket) {
+                if (response != NULL) {
+                    freePacket(response);
+                    response = NULL;
+                }
+
                 if (statusPacketString[4] == 'S') {
                     cout << "SUCCESS: " << filename << endl;
                     // *GRADING << "File: " << filename << " end-to-end check succeeded, attempt " << attempts << endl;
@@ -264,17 +321,26 @@ main(int argc, char *argv[]) {
                 }
                 attempts++;
             }
+            
+            printf("Ack Response: %s\n", packetContent(response));
+            if (response != NULL) {
+                    freePacket(response);
+                    response = NULL;
+            }
 
+            free(statusPacketString);
             packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
 
             free(fileContent);
             fileContent = NULL;
 
-            printf("Ack Response: %s\n", packetContent(response));
             // cout << "_______________________________" << endl;
             // packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
 
         }
+
+        delete sock;
+        
     } catch (C150NetworkException &e) {
         cerr << argv[0] << ": caught C150NetworkException: " << e.formattedExplanation() << endl;
     }
