@@ -22,16 +22,22 @@ makeCopyPacket(ssize_t fileLen, char *filename, int packetNumber) {
 }
 
 packet 
-makeStatusPacket(unsigned char *serverHash, unsigned char *clientHash, char *filename, int packetNumber) {
-    int contentLength = strlen(filename) + 1;
-    char content[contentLength];
+makeStatusPacket(unsigned char *clientHash, packet hashPacket, int packetNumber) {
+    int incomingContentLength = packetLength(hashPacket) - 5;
+    int hashLength = 20;
+    char *hashContent = packetContent(hashPacket);
+    
+    // response will be filename + status
+    int outgoingContentLength = incomingContentLength - hashLength + 1;
+    char content[outgoingContentLength];
 
-    content[0] = (memcmp(serverHash, clientHash, 20) == 0) ? 'S' : 'F';
-    for (int index = 1; index < contentLength; index++) {
-        content[index] = filename[index - 1];
-    }
+    // copy status into content at index 0
+    content[0] = (memcmp(clientHash, hashContent, 20) == 0) ? 'S' : 'F';
 
-    return makePacket('S', contentLength, packetNumber, content);
+    // remaining array is the filename
+    memcpy((content + 1), (hashContent + hashLength), (outgoingContentLength - 1));
+
+    return makePacket('S', outgoingContentLength, packetNumber, content);
 }
 
 packet 
