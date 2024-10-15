@@ -178,6 +178,8 @@ main(int argc, char *argv[]) {
 
                         if (fileData[filename] != NULL) {
                             // todo this can probably be simpler... our keys can be packetNumber * roundup(log10(offset)) + offset
+                            // this actually should be a hashmap of filename to set of writes that are done so it can be freed at the end
+                            // and therefore a file can be sent twice if the client wants
                             if (fileCopyData.count(filename + to_string(offset)) == 0) {
                                 // cout << "Adding " << bytesRead << " bytes at offset " << offset << " for " << filename << endl;
                                 fileCopyData.insert(filename + to_string(offset));

@@ -214,7 +214,7 @@ main(int argc, char *argv[]) {
                             if (response != NULL) {
                                 freePacket(response);
                                 response = NULL;
-                            }
+                            } 
                         }
                     } while (!noResponse);
 
