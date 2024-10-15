@@ -39,7 +39,9 @@ main(int argc, char *argv[]) {
 
     unordered_map<string, unsigned char *> fileData;
     unordered_map<string, ssize_t> fileLengths;
+    unordered_map<string, unordered_set<int>> fileBytesFilled;
     unordered_set<string> fileCopyData;
+
     int i = 0;
     try {
         C150DgmSocket *sock = new C150NastyDgmSocket(serverNastiness);
@@ -62,10 +64,6 @@ main(int argc, char *argv[]) {
                     string fname(packetContent(packetIn));
                     *GRADING << "File: " << fname << " received, beginning end-to-end check" << endl;
                     
-                    // read file from client, set fContent to file data
-                    // unsigned char *fContent;
-                    // ssize_t fContentLen = readFile(argv[TARGET_DIR], fname, fileNastiness, &fContent);
-
                     NASTYFILE outputFile(fileNastiness);
                     string targetName = makeTMPFileName(argv[TARGET_DIR], fname);
 
@@ -120,11 +118,9 @@ main(int argc, char *argv[]) {
                             // compare hashes of filecontent and readFromTMP
                             SHA1((const unsigned char *)readFromTMP, fileLengths[fname], hashTMP);
                             free(readFromTMP);
+                            
                         } while (!(strncmp((const char *) hashTMP, (const char *) obuff, 20) == 0));
 
-
-                        // todo: server keeps track of all hashes it has computed thus far
-                        //       to deal with a possible drop of a H packet that would make the C resend F
                         packetOut = makeHashPacket(packetIn, hashTMP);
                     }
 
@@ -146,6 +142,7 @@ main(int argc, char *argv[]) {
                     } else {
                         free(fileData[fname]);
                         fileData[fname] = NULL;
+                        fileBytesFilled[fname].clear();
 
                         packetOut = makeAckPacket(packetIn);
                     }
@@ -176,20 +173,13 @@ main(int argc, char *argv[]) {
                         char *fileContent = parseBytesContent(packetIn, bytesRead);
                         string filename = parseBytesFilename(packetIn);
 
+                        // if file is active
                         if (fileData[filename] != NULL) {
-                            // todo this can probably be simpler... our keys can be packetNumber * roundup(log10(offset)) + offset
-                            // this actually should be a hashmap of filename to set of writes that are done so it can be freed at the end
-                            // and therefore a file can be sent twice if the client wants
-                            if (fileCopyData.count(filename + to_string(offset)) == 0) {
-                                // cout << "Adding " << bytesRead << " bytes at offset " << offset << " for " << filename << endl;
-                                fileCopyData.insert(filename + to_string(offset));
-
-                                // todo memcpy
-                                for (int byte = 0; byte < bytesRead; byte++) {
-                                    (fileData[filename])[offset + byte] = fileContent[byte];
-                                }
+                            // if bytes at offset have not been copied
+                            if (fileBytesFilled[filename].count(offset) == 0) {
+                                fileBytesFilled[filename].insert(offset);
+                                memcpy(fileData[filename] + offset, fileContent, bytesRead);
                             }
-
 
                             packetOut = makeResBPacket(packetIn);
                         } else {

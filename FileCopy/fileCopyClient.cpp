@@ -13,6 +13,7 @@
 #include <iostream>
 #include <openssl/sha.h>
 #include <cmath>
+#include <queue>
 
 using namespace std;
 using namespace C150NETWORK;
@@ -40,9 +41,6 @@ main(int argc, char *argv[]) {
         exit(1);
     }
 
-    // File to be transferred 
-    struct dirent *sourceFile;
-
     // make sure input given is a valid directory and open it
     checkDirectory(argv[SRC_DIR]);
     DIR *SRC = opendir(argv[SRC_DIR]);
@@ -62,10 +60,22 @@ main(int argc, char *argv[]) {
         sock -> setServerName(argv[SERVER_ARG]);
         sock -> turnOnTimeouts(500);
 
-        // loop for each file in the given directory
+        queue<char *> noahsFiles;
+        struct dirent *sourceFile;
+
         while ((sourceFile = readdir(SRC)) != NULL) {
+            noahsFiles.push(sourceFile -> d_name);
+        }
+
+        // add files to queue
+        // loop for each file in the given directory
+        while (!(noahsFiles.empty())) {
+
+            filename = noahsFiles.front();
+            noahsFiles.pop();
+
             // skip the . and .. names
-            filename = sourceFile -> d_name;
+            // filename = sourceFile -> d_name;
             filenameLength = strlen(filename);
             if ((strcmp(filename, ".") == 0) || (strcmp(filename, "..")  == 0 )) 
                 continue;
@@ -79,15 +89,15 @@ main(int argc, char *argv[]) {
 
             struct stat statbuf;
             size_t sourceSize;
-            string sourceFile = makeFileName(argv[SRC_DIR], filename);
+            string srcFilename = makeFileName(argv[SRC_DIR], filename);
 
-            if (!isFile(sourceFile)) {
-                cerr << sourceFile << " is a not a valid file. Skipping" << endl;
+            if (!isFile(srcFilename)) {
+                cerr << srcFilename << " is a not a valid file. Skipping" << endl;
                 continue;
             }
 
-            if (lstat(sourceFile.c_str(), &statbuf) != 0) {
-                fprintf(stderr, "copyFile: Error stating supplied source file %s\n", sourceFile.c_str());
+            if (lstat(srcFilename.c_str(), &statbuf) != 0) {
+                fprintf(stderr, "copyFile: Error stating supplied source file %s\n", srcFilename.c_str());
                 continue;
             }
 
@@ -101,7 +111,7 @@ main(int argc, char *argv[]) {
 
             // open file, try until success
             do {
-                filePtr = inputFile.fopen(sourceFile.c_str(), "rb");
+                filePtr = inputFile.fopen(srcFilename.c_str(), "rb");
             } while (filePtr == NULL);
 
             // read file, try until success
@@ -175,17 +185,15 @@ main(int argc, char *argv[]) {
 
                 // all bytes sent but not all packets acknowledged
                 } else {
-                    int next = 0;
                     
                     while ((!expectedAcks.empty()) && (bytePacket == NULL)) {
-                        next = expectedAcks.top();
+                        int next = expectedAcks.top();
                         if ((unAcked[next] == NULL)) {
                             expectedAcks.pop();
                         } else {
                             bytePacket = unAcked[next];
                         }
                     }
-
                 }
 
                 if (bytePacket != NULL) {
@@ -208,7 +216,6 @@ main(int argc, char *argv[]) {
                                     freePacket(unAcked[sentPacketNumber]);
                                     unAcked[sentPacketNumber] = NULL;
                                 }
-
                             }
 
                             if (response != NULL) {
@@ -217,28 +224,6 @@ main(int argc, char *argv[]) {
                             } 
                         }
                     } while (!noResponse);
-
-                    /*
-                    sock -> read(incomingMessage, sizeof(incomingMessage));
-                    noResponse = sock -> timedout();
-
-                    if (!noResponse) {
-                        response = stringToPacket((unsigned char *)incomingMessage);
-
-                        if ((packetOpcode(response) == 'R') && (packetContent(response)[0] == 'B')) {
-                            int sentPacketNumber = packetNum(response);
-                            if (unAcked[sentPacketNumber] != NULL) {
-                                freePacket(unAcked[sentPacketNumber]);
-                                unAcked[sentPacketNumber] = NULL;
-                            }
-
-                            if (response != NULL) {
-                                freePacket(response);
-                                response = NULL;
-                            }
-                        }
-                    }
-                    */
 
                     free(bytePacketString);
                 }
@@ -277,7 +262,6 @@ main(int argc, char *argv[]) {
             free(fileCheckPacketString);
             packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
 
-
             /** Send packet to server alerting of successful transfer or fail **/
 
             // Create SHA1 hash for file from SRC Directory
@@ -308,6 +292,7 @@ main(int argc, char *argv[]) {
                     cout << "SUCCESS: " << filename << endl;
                     // *GRADING << "File: " << filename << " end-to-end check succeeded, attempt " << attempts << endl;
                 } else if (statusPacketString[4] == 'F') {
+                    noahsFiles.push(filename);
                     cout << "FAILURE: " << filename << endl;
                     // *GRADING << "File: " << filename << " end-to-end check failed, attempt " << attempts << endl;
                 }
