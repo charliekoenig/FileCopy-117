@@ -59,8 +59,8 @@ makeBytePacket(int offset, char *filename, unsigned char *fileContent, int packe
     int contentLength = filenameLength + bytesRead + offsetBytes + filenameLengthBytes;
     char content[contentLength];
 
-    int index = 0;
-    for (index = 0; index < contentLength; index++) {
+    // todo memcpy
+    for (int index = 0; index < contentLength; index++) {
         if (index >= fileContentIndex) {
             content[index] = fileContent[(index - fileContentIndex) + offset];
         } else if (index >= filenameIndex) {

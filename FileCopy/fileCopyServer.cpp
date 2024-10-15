@@ -177,9 +177,12 @@ main(int argc, char *argv[]) {
                         string filename = parseBytesFilename(packetIn);
 
                         if (fileData[filename] != NULL) {
+                            // todo this can probably be simpler... our keys can be packetNumber * roundup(log10(offset)) + offset
                             if (fileCopyData.count(filename + to_string(offset)) == 0) {
                                 // cout << "Adding " << bytesRead << " bytes at offset " << offset << " for " << filename << endl;
                                 fileCopyData.insert(filename + to_string(offset));
+
+                                // todo memcpy
                                 for (int byte = 0; byte < bytesRead; byte++) {
                                     (fileData[filename])[offset + byte] = fileContent[byte];
                                 }

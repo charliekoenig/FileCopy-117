@@ -153,14 +153,14 @@ main(int argc, char *argv[]) {
             unsigned int offset = 0;
             int bytesToSend = MAX_READ - filenameLength;
 
-            // save the initial packet number
-
             unordered_map<int, packet> unAcked;
             stack<int> expectedAcks;
             packet bytePacket = NULL;
 
             sock -> turnOnTimeouts(5);
             while ((offset < bytesRead) || !expectedAcks.empty()) {
+
+                // there are still unsent bytes from the file
                 if (offset < bytesRead) {
                     bytesToSend = min(bytesToSend, (int)(bytesRead - offset));
                     bytePacket = makeBytePacket(offset, filename, fileContent, 
@@ -172,6 +172,8 @@ main(int argc, char *argv[]) {
                     // cout << "Sending " << bytesToSend << " bytes at offset " << offset << " for file " << filename << endl;
                     offset += bytesToSend;
                     packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
+
+                // all bytes sent but not all packets acknowledged
                 } else {
                     int next = 0;
                     
@@ -192,7 +194,7 @@ main(int argc, char *argv[]) {
 
                     sock -> write(bytePacketString, packetLen);
                     
-                    // trying this
+                    // read until timeout to avoid overloading server
                     do {
                         sock -> read(incomingMessage, sizeof(incomingMessage));
                         noResponse = sock -> timedout();
@@ -340,7 +342,7 @@ main(int argc, char *argv[]) {
         }
 
         delete sock;
-        
+
     } catch (C150NetworkException &e) {
         cerr << argv[0] << ": caught C150NetworkException: " << e.formattedExplanation() << endl;
     }
