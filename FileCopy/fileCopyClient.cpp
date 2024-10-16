@@ -147,14 +147,14 @@ main(int argc, char *argv[]) {
             } while ((freq < 0.75 || tries < 50) && tries < 200);
 
             // if no successful read, try file later
-            if (tries == 200) {
-                cout << "Failed on: " << filename << endl;
-                noahsFiles.push(filename);
-                *GRADING << "File: " << filename << " was not read correctly, attempt " << fileCopyAttempts[filename] << endl;
-                fileCopyAttempts[filename] += 1;
-                free(fileContent);
-                continue;
-            }
+            // if (tries == 200) {
+            //     cerr << "Failed on: " << filename << endl;
+            //     // noahsFiles.push(filename);
+            //     *GRADING << "File: " << filename << " was not read correctly, attempt " << fileCopyAttempts[filename] << endl;
+            //     fileCopyAttempts[filename] += 1;
+            //     free(fileContent);
+            //     continue;
+            // }
 
             // Create packet alerting server of file to be copied
             packet fileInfoPacket = makeCopyPacket((int) sourceSize, filename, packetNumber);
@@ -199,12 +199,52 @@ main(int argc, char *argv[]) {
 
             *GRADING << "File: " << filename << ", beginning transmission, attempt " << fileCopyAttempts[filename] << endl;
 
+            do {
+                filePtr = inputFile.fopen(srcFilename.c_str(), "rb");
+            } while (filePtr == NULL);
+
             sock -> turnOnTimeouts(5);
             while ((offset < bytesRead) || !expectedAcks.empty()) {
 
                 // there are still unsent bytes from the file
                 if (offset < bytesRead) {
                     bytesToSend = min(bytesToSend, (int)(bytesRead - offset));
+
+                    unsigned char *partialFileContent = (unsigned char *)malloc(bytesToSend);
+                    if (safeFRead(bytesToSend, inputFile, 1, &partialFileContent, offset) == 1) {
+                        cerr << "freq never reached 75%\n";
+                    }
+                    // ---------------------------------------------------------------------------------
+                    // unsigned char partialFileContent[bytesToSend];
+                    // size_t bytesReadPartial = 0;
+
+                    // float freqPartial = 0;
+                    // float triesPartial = 0;
+
+                    // unordered_map<string, float> contentStrings;
+
+                    // do {
+                    //     do {
+                    //         bytesReadPartial = inputFile.fread(partialFileContent, 1, bytesToSend);
+                    //         cerr << "bytesReadPartial: " << bytesReadPartial << " bytesToSend: " << bytesToSend << endl;
+                    //     } while ((int) bytesReadPartial != bytesToSend);
+                        
+                    //     string contentStr((const char *) partialFileContent, bytesReadPartial);
+                    //     triesPartial += 1;
+
+                    //     int hits = contentStrings[contentStr] += 1;
+                    //     freqPartial = hits/triesPartial;
+                    // } while ((freqPartial < 0.75 || triesPartial < 50) && triesPartial < 200);
+
+                    // cerr << "got to 212\n";
+                    // ---------------------------------------------------------------------------------
+
+                    if (strcmp("warandpeace.txt", filename) == 0) {
+                        for (int i = 0; i < bytesToSend; i++) {
+                            cout << partialFileContent[i];
+                        }
+                    }
+
                     bytePacket = makeBytePacket(offset, filename, fileContent, 
                                                 packetNumber, bytesToSend, 
                                                 filenameLength);
@@ -263,6 +303,11 @@ main(int argc, char *argv[]) {
 
                 bytePacket = NULL;
             }
+
+            // close file, try until success
+            do {
+                closeResult = inputFile.fclose();
+            } while (closeResult != 0 );
 
             *GRADING << "File: " << filename << " transmission complete, waiting for end-to-end check, attempt " << fileCopyAttempts[filename] << endl;
 
@@ -343,10 +388,10 @@ main(int argc, char *argv[]) {
                 }
 
                 if (statusPacketString[4] == 'S') {
-                    cout << "SUCCESS: " << filename << endl;
+                    cerr << "SUCCESS: " << filename << endl;
                     *GRADING << "File: " << filename << " end-to-end check succeeded, attempt " << fileCopyAttempts[filename] << endl;
                 } else if (statusPacketString[4] == 'F') {
-                    cout << "FAILURE: " << filename << endl;
+                    cerr << "FAILURE: " << filename << endl;
                     *GRADING << "File: " << filename << " end-to-end check failed, attempt " << fileCopyAttempts[filename] << endl;
                     fileCopyAttempts[filename] += 1;
                     noahsFiles.push(filename);
@@ -364,7 +409,6 @@ main(int argc, char *argv[]) {
                 attempts++;
             }
             
-            printf("Ack Response: %s\n", packetContent(response));
             if (response != NULL) {
                     freePacket(response);
                     response = NULL;

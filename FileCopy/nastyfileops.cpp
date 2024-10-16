@@ -1,4 +1,6 @@
 #include "nastyfileops.h"
+#include <openssl/sha.h>
+#include <cstring>
 
 using namespace std;
 using namespace C150NETWORK;
@@ -59,6 +61,32 @@ isFile(string fname) {
         return false;
     }
     return true;
+}
+
+int
+safeFRead(unsigned int bytesToSend, NASTYFILE &inputFile, int size, unsigned char **fileContent, int offset) {
+    size_t bytesRead = 0;
+
+    float freq = 0;
+    float tries = 0;
+
+    unordered_map<string, float> contentStrings;
+    *fileContent = (unsigned char *)malloc(bytesToSend);
+
+    do {
+        do {
+            inputFile.fseek(offset, SEEK_SET);
+            bytesRead = inputFile.fread(*fileContent, size, bytesToSend);
+        } while (bytesRead != bytesToSend);
+        
+        string contentStr((const char *) *fileContent, bytesRead);
+        tries += 1;
+
+        int hits = contentStrings[contentStr] += 1;
+        freq = hits/tries;
+    } while ((freq < 0.75 || tries < 50) && tries < 200);
+
+    return (freq < 0.75);
 }
 
 /**********************************************************
