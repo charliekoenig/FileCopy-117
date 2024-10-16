@@ -108,26 +108,51 @@ main(int argc, char *argv[]) {
             void *filePtr    = NULL;
             size_t bytesRead = 0;
             int closeResult  = 0;
+            
 
-            // open file, try until success
+            float freq = 0;
+            float tries = 0;
+            unordered_map<string, float> hashCounts;
+            unsigned char hash[21];
             do {
-                filePtr = inputFile.fopen(srcFilename.c_str(), "rb");
-            } while (filePtr == NULL);
 
-            // read file, try until success
-            do {
-                bytesRead = inputFile.fread(fileContent, 1, sourceSize);
-            } while (bytesRead != sourceSize);
-        
-            // close file, try until success
-            do {
-                closeResult = inputFile.fclose();
-            } while (closeResult != 0 );
+                // open file, try until success
+                do {
+                    filePtr = inputFile.fopen(srcFilename.c_str(), "rb");
+                } while (filePtr == NULL);
 
+                // read file, try until success
+                do {
+                    bytesRead = inputFile.fread(fileContent, 1, sourceSize);
+                } while (bytesRead != sourceSize);
 
+                // close file, try until success
+                do {
+                    closeResult = inputFile.fclose();
+                } while (closeResult != 0 );
+
+                // Create SHA1 hash for file from SRC Directory
+                SHA1((const unsigned  char *)fileContent, bytesRead, hash);
+                hash[20] = '\0';
+
+                string hashString((char *)hash);
+                tries += 1;
+
+                int hits = hashCounts[hashString] += 1;
+                freq = hits/tries;
+
+            } while ((freq < 0.75 || tries < 50) && tries < 200);
+
+            // if no successful read, try file later
+            if (tries == 200) {
+                cout << "Failed on: " << filename << endl;
+                noahsFiles.push(filename);
+                free(fileContent);
+                continue;
+            }
 
             // Create packet alerting server of file to be copied
-            packet fileInfoPacket = makeCopyPacket(bytesRead, filename, packetNumber);
+            packet fileInfoPacket = makeCopyPacket((int) sourceSize, filename, packetNumber);
             char *fileInfoPacketString = packetToString(fileInfoPacket);
             int packetLen = packetLength(fileInfoPacket);
             freePacket(fileInfoPacket);
@@ -177,6 +202,7 @@ main(int argc, char *argv[]) {
                                                 packetNumber, bytesToSend, 
                                                 filenameLength);
 
+                    // read bytes to send from <filename>
                     expectedAcks.push(packetNumber);
                     unAcked[packetNumber] = bytePacket;
                     // cout << "Sending " << bytesToSend << " bytes at offset " << offset << " for file " << filename << endl;
@@ -263,6 +289,21 @@ main(int argc, char *argv[]) {
             packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
 
             /** Send packet to server alerting of successful transfer or fail **/
+
+            // // open file, try until success
+            // do {
+            //     filePtr = inputFile.fopen(srcFilename.c_str(), "rb");
+            // } while (filePtr == NULL);
+
+            // // read file, try until success
+            // do {
+            //     bytesRead = inputFile.fread(fileContent, 1, sourceSize);
+            // } while (bytesRead != sourceSize);
+
+            // // close file, try until success
+            // do {
+            //     closeResult = inputFile.fclose();
+            // } while (closeResult != 0 );
 
             // Create SHA1 hash for file from SRC Directory
             unsigned char localHash[20];

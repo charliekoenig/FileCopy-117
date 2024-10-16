@@ -70,12 +70,12 @@ main(int argc, char *argv[]) {
                     string targetName = makeTMPFileName(argv[TARGET_DIR], fname);
 
                     unsigned char hashTMP[20];
-                    unsigned char obuff[20];
+                    unsigned char memHash[20];
 
                     if (fileData[fname] == NULL) {
                         packetOut = makePacket('U', 0, packetNum(packetIn), NULL);
                     } else {
-                        SHA1((const unsigned char *)fileData[fname], fileLengths[fname], obuff);
+                        SHA1((const unsigned char *)fileData[fname], fileLengths[fname], memHash);
                         
                         // redo the entire write if hashes are different
                         int currAttempt = 1;
@@ -114,14 +114,15 @@ main(int argc, char *argv[]) {
                                     " errno=" << strerror(errno) << endl;
                             }
 
-                            cout << "Attempt " << currAttempt << " comparing hash\n";
+                            // cout << "Attempt " << currAttempt << " comparing hash\n";
                             currAttempt += 1;
 
                             // compare hashes of filecontent and readFromTMP
                             SHA1((const unsigned char *)readFromTMP, fileLengths[fname], hashTMP);
+
                             free(readFromTMP);
                             
-                        } while (!(strncmp((const char *) hashTMP, (const char *) obuff, 20) == 0));
+                        } while (!(strncmp((const char *) hashTMP, (const char *) memHash, 20) == 0));
 
                         packetOut = makeHashPacket(packetIn, hashTMP);
                     }
