@@ -163,7 +163,7 @@ main(int argc, char *argv[]) {
             freePacket(fileInfoPacket);
 
             // Loop until server acknowledges C packet
-            int attempts = 0;
+            int attempts = 1;
             while (noResponse || unexpectedPacket) {
                 sock -> write(fileInfoPacketString, packetLen);
 
@@ -179,6 +179,7 @@ main(int argc, char *argv[]) {
                     freePacket(response);
                     response = NULL;
                 }
+                *GRADING << "File: " << filename << " attempt " << attempts << " to send file information to server in filecopy attempt " << fileCopyAttempts[filename] << endl;
                 
                 attempts++; 
             }
@@ -276,6 +277,7 @@ main(int argc, char *argv[]) {
             freePacket(fileCheckPacket);
 
             noResponse = unexpectedPacket = true;
+            attempts = 1;
             while (noResponse || unexpectedPacket) {
                 if (response != NULL) {
                     freePacket(response);
@@ -291,6 +293,9 @@ main(int argc, char *argv[]) {
                     unexpectedPacket = (packetOpcode(response) != 'H' ||
                                         packetNum(response) != packetNumber);
                 }
+                
+                *GRADING << "File: " << filename << " attempt " << attempts << " to receive hash, in filecopy attempt " << fileCopyAttempts[filename] << endl;
+                attempts++;
             }
 
             free(fileCheckPacketString);
@@ -328,7 +333,7 @@ main(int argc, char *argv[]) {
                 response = NULL;
             }
 
-            attempts = 0;
+            attempts = 1;
             noResponse = true, unexpectedPacket = true;
 
             while (noResponse || unexpectedPacket) {

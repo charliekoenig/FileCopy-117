@@ -115,6 +115,7 @@ main(int argc, char *argv[]) {
                             }
 
                             // cout << "Attempt " << currAttempt << " comparing hash\n";
+                            *GRADING << "File: " << fname << " writing to TMP after hash comparison with memory, attempt " << currAttempt << endl;
                             currAttempt += 1;
 
                             // compare hashes of filecontent and readFromTMP
@@ -123,6 +124,8 @@ main(int argc, char *argv[]) {
                             free(readFromTMP);
                             
                         } while (!(strncmp((const char *) hashTMP, (const char *) memHash, 20) == 0));
+
+                        *GRADING << "File: " << fname << " sending sha1 to client" << endl;
 
                         packetOut = makeHashPacket(packetIn, hashTMP);
                     }
