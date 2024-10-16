@@ -214,38 +214,9 @@ main(int argc, char *argv[]) {
                     if (safeFRead(bytesToSend, inputFile, 1, &partialFileContent, offset) == 1) {
                         cerr << "freq never reached 75%\n";
                     }
-                    // ---------------------------------------------------------------------------------
-                    // unsigned char partialFileContent[bytesToSend];
-                    // size_t bytesReadPartial = 0;
-
-                    // float freqPartial = 0;
-                    // float triesPartial = 0;
-
-                    // unordered_map<string, float> contentStrings;
-
-                    // do {
-                    //     do {
-                    //         bytesReadPartial = inputFile.fread(partialFileContent, 1, bytesToSend);
-                    //         cerr << "bytesReadPartial: " << bytesReadPartial << " bytesToSend: " << bytesToSend << endl;
-                    //     } while ((int) bytesReadPartial != bytesToSend);
-                        
-                    //     string contentStr((const char *) partialFileContent, bytesReadPartial);
-                    //     triesPartial += 1;
-
-                    //     int hits = contentStrings[contentStr] += 1;
-                    //     freqPartial = hits/triesPartial;
-                    // } while ((freqPartial < 0.75 || triesPartial < 50) && triesPartial < 200);
-
-                    // cerr << "got to 212\n";
-                    // ---------------------------------------------------------------------------------
-
-                    if (strcmp("warandpeace.txt", filename) == 0) {
-                        for (int i = 0; i < bytesToSend; i++) {
-                            cout << partialFileContent[i];
-                        }
-                    }
-
-                    bytePacket = makeBytePacket(offset, filename, fileContent, 
+                    memcpy(fileContent + offset, partialFileContent, bytesToSend);
+                    
+                    bytePacket = makeBytePacket(offset, filename, partialFileContent, 
                                                 packetNumber, bytesToSend, 
                                                 filenameLength);
 
