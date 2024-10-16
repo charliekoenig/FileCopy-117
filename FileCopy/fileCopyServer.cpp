@@ -164,6 +164,8 @@ main(int argc, char *argv[]) {
                         char *filenameRead = NULL;
                         ssize_t totalBytes = parseCPacket(packetIn, &filenameRead);
                         string filenameReadString(filenameRead);
+
+                        *GRADING << "File: " << filenameRead << " starting to receive file" << endl;
                         
                         if (fileData[filenameReadString] == NULL) {
                             fileData[filenameReadString] = (unsigned char *)malloc(totalBytes);

@@ -63,8 +63,11 @@ main(int argc, char *argv[]) {
         queue<char *> noahsFiles;
         struct dirent *sourceFile;
 
+        unordered_map<char *, int> fileCopyAttempts;
+
         while ((sourceFile = readdir(SRC)) != NULL) {
             noahsFiles.push(sourceFile -> d_name);
+            fileCopyAttempts[sourceFile -> d_name] = 1;
         }
 
         // add files to queue
@@ -147,6 +150,8 @@ main(int argc, char *argv[]) {
             if (tries == 200) {
                 cout << "Failed on: " << filename << endl;
                 noahsFiles.push(filename);
+                *GRADING << "File: " << filename << " was not read correctly, attempt " << fileCopyAttempts[filename] << endl;
+                fileCopyAttempts[filename] += 1;
                 free(fileContent);
                 continue;
             }
@@ -161,7 +166,6 @@ main(int argc, char *argv[]) {
             int attempts = 0;
             while (noResponse || unexpectedPacket) {
                 sock -> write(fileInfoPacketString, packetLen);
-                // *GRADING << "File: " << filename << " transmission complete, waiting for end-to-end check, attempt " << attempts << endl;
 
                 sock -> read(incomingMessage, sizeof(incomingMessage));
                 noResponse = sock -> timedout();
@@ -191,6 +195,8 @@ main(int argc, char *argv[]) {
             unordered_map<int, packet> unAcked;
             stack<int> expectedAcks;
             packet bytePacket = NULL;
+
+            *GRADING << "File: " << filename << ", beginning transmission, attempt " << fileCopyAttempts[filename] << endl;
 
             sock -> turnOnTimeouts(5);
             while ((offset < bytesRead) || !expectedAcks.empty()) {
@@ -256,6 +262,8 @@ main(int argc, char *argv[]) {
 
                 bytePacket = NULL;
             }
+
+            *GRADING << "File: " << filename << " transmission complete, waiting for end-to-end check, attempt " << fileCopyAttempts[filename] << endl;
 
             packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
             sock -> turnOnTimeouts(500);
@@ -331,11 +339,12 @@ main(int argc, char *argv[]) {
 
                 if (statusPacketString[4] == 'S') {
                     cout << "SUCCESS: " << filename << endl;
-                    // *GRADING << "File: " << filename << " end-to-end check succeeded, attempt " << attempts << endl;
+                    *GRADING << "File: " << filename << " end-to-end check succeeded, attempt " << fileCopyAttempts[filename] << endl;
                 } else if (statusPacketString[4] == 'F') {
-                    noahsFiles.push(filename);
                     cout << "FAILURE: " << filename << endl;
-                    // *GRADING << "File: " << filename << " end-to-end check failed, attempt " << attempts << endl;
+                    *GRADING << "File: " << filename << " end-to-end check failed, attempt " << fileCopyAttempts[filename] << endl;
+                    fileCopyAttempts[filename] += 1;
+                    noahsFiles.push(filename);
                 }
 
                 sock -> write(statusPacketString, packetLen);
