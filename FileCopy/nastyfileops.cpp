@@ -63,30 +63,80 @@ isFile(string fname) {
     return true;
 }
 
-int
-safeFRead(unsigned int bytesToSend, NASTYFILE &inputFile, int size, unsigned char **fileContent, int offset) {
+bool
+safeFRead(unsigned int bytesToRead, NASTYFILE &inputFile, int size, 
+          unsigned char **data, int offset) {
     size_t bytesRead = 0;
 
     float freq = 0;
     float tries = 0;
 
     unordered_map<string, float> contentStrings;
-    *fileContent = (unsigned char *)malloc(bytesToSend);
+    *data = (unsigned char *)malloc(bytesToRead);
 
     do {
         do {
             inputFile.fseek(offset, SEEK_SET);
-            bytesRead = inputFile.fread(*fileContent, size, bytesToSend);
-        } while (bytesRead != bytesToSend);
+            bytesRead = inputFile.fread(*data, size, bytesToRead);
+        } while (bytesRead != bytesToRead);
         
-        string contentStr((const char *) *fileContent, bytesRead);
+        string contentStr((const char *) *data, bytesRead);
         tries += 1;
 
         int hits = contentStrings[contentStr] += 1;
         freq = hits/tries;
     } while ((freq < 0.75 || tries < 50) && tries < 200);
 
-    return (freq < 0.75);
+    return (freq >= 0.75);
+}
+
+bool
+safeFWrite(unsigned int bytesToWrite, NASTYFILE &outputFile, int size, 
+           unsigned char *data, int offset, string targetName) {
+
+    int failedAttempts = 0;
+    bool success       = false;
+
+    void *filePtr = NULL;
+    unsigned int bytesWritten = 0;
+    int fileClosed = 1;
+
+    unsigned char *dataRead = NULL;
+
+    try {
+        do {
+            failedAttempts += 1;
+            do {
+                filePtr = outputFile.fopen(targetName.c_str(), "wb");
+            } while (filePtr == NULL);
+
+            do {
+                outputFile.fseek(offset, SEEK_SET);
+                bytesWritten = outputFile.fwrite(data, 1, bytesToWrite);
+            } while (bytesWritten != bytesToWrite);
+
+            do {
+                fileClosed = outputFile.fclose(); 
+            } while (fileClosed != 0);
+
+            do {
+                filePtr = outputFile.fopen(targetName.c_str(), "rb");
+            } while (filePtr == NULL);
+            
+            safeFRead(bytesToWrite, outputFile, size, &dataRead, offset);
+            success = memcmp(data, dataRead, bytesToWrite);
+
+            do {
+                fileClosed = outputFile.fclose(); 
+            } while (fileClosed != 0);
+
+        } while (!success && (failedAttempts < 10));
+    } catch (C150Exception& e) {
+        cerr << "nastyfiletest:copyfile(): Caught C150Exception: " << 
+                e.formattedExplanation() << endl;
+    }
+
+    return failedAttempts < 10;
 }
 
 /**********************************************************

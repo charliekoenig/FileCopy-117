@@ -12,5 +12,11 @@ using namespace C150NETWORK;
 
 string makeFileName(string dir, string fname);
 bool isFile(string fname);
-int safeFRead(unsigned int bytesToSend, NASTYFILE &inputFile, int size, unsigned char **fileContent, int offset);
+
+bool safeFRead(unsigned int bytesToRead, NASTYFILE &inputFile, int size, 
+               unsigned char **data, int offset);
+
+bool safeFWrite(unsigned int bytesToWrite, NASTYFILE &outputFile, int size, 
+                unsigned char *data, int offset, string targetName);
+
 ssize_t readFile(string dir, string fname, int nastiness, unsigned char **obuff);

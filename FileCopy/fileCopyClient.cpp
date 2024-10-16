@@ -86,8 +86,7 @@ main(int argc, char *argv[]) {
             bool noResponse = sock -> timedout();
             bool unexpectedPacket = true;
             
-            // PREP PACKET C
-            // get file information
+            /********* Open File and Preparce to transfer *********/
             unsigned char *fileContent = NULL;
 
             struct stat statbuf;
@@ -105,56 +104,8 @@ main(int argc, char *argv[]) {
             }
 
             sourceSize = statbuf.st_size;
-            fileContent = (unsigned char *)malloc(sourceSize);
+            fileContent = (unsigned char *) malloc(sourceSize);
             NASTYFILE inputFile(atoi(argv[FILE_NAST_ARG]));
-
-            void *filePtr    = NULL;
-            size_t bytesRead = 0;
-            int closeResult  = 0;
-            
-
-            float freq = 0;
-            float tries = 0;
-            unordered_map<string, float> hashCounts;
-            unsigned char hash[21];
-            do {
-
-                // open file, try until success
-                do {
-                    filePtr = inputFile.fopen(srcFilename.c_str(), "rb");
-                } while (filePtr == NULL);
-
-                // read file, try until success
-                do {
-                    bytesRead = inputFile.fread(fileContent, 1, sourceSize);
-                } while (bytesRead != sourceSize);
-
-                // close file, try until success
-                do {
-                    closeResult = inputFile.fclose();
-                } while (closeResult != 0 );
-
-                // Create SHA1 hash for file from SRC Directory
-                SHA1((const unsigned  char *)fileContent, bytesRead, hash);
-                hash[20] = '\0';
-
-                string hashString((char *)hash);
-                tries += 1;
-
-                int hits = hashCounts[hashString] += 1;
-                freq = hits/tries;
-
-            } while ((freq < 0.75 || tries < 50) && tries < 200);
-
-            // if no successful read, try file later
-            // if (tries == 200) {
-            //     cerr << "Failed on: " << filename << endl;
-            //     // noahsFiles.push(filename);
-            //     *GRADING << "File: " << filename << " was not read correctly, attempt " << fileCopyAttempts[filename] << endl;
-            //     fileCopyAttempts[filename] += 1;
-            //     free(fileContent);
-            //     continue;
-            // }
 
             // Create packet alerting server of file to be copied
             packet fileInfoPacket = makeCopyPacket((int) sourceSize, filename, packetNumber);
@@ -198,38 +149,39 @@ main(int argc, char *argv[]) {
             packet bytePacket = NULL;
 
             *GRADING << "File: " << filename << ", beginning transmission, attempt " << fileCopyAttempts[filename] << endl;
-
+            
+            void *filePtr    = NULL;
             do {
                 filePtr = inputFile.fopen(srcFilename.c_str(), "rb");
             } while (filePtr == NULL);
 
             sock -> turnOnTimeouts(5);
-            while ((offset < bytesRead) || !expectedAcks.empty()) {
+            while ((offset < sourceSize) || !expectedAcks.empty()) {
 
                 // there are still unsent bytes from the file
-                if (offset < bytesRead) {
-                    bytesToSend = min(bytesToSend, (int)(bytesRead - offset));
+                if (offset < sourceSize) {
+                    bytesToSend = min(bytesToSend, (int)(sourceSize - offset));
 
-                    unsigned char *partialFileContent = (unsigned char *)malloc(bytesToSend);
-                    if (safeFRead(bytesToSend, inputFile, 1, &partialFileContent, offset) == 1) {
+                    unsigned char *fromFile = (unsigned char *)malloc(bytesToSend);
+                    if (!safeFRead(bytesToSend, inputFile, 1, &fromFile, offset)) {
                         cerr << "freq never reached 75%\n";
-                    }
-                    memcpy(fileContent + offset, partialFileContent, bytesToSend);
+                        // retry with less bytes? divide by 2?
+                    } 
+                    memcpy(fileContent + offset, fromFile, bytesToSend);
                     
-                    bytePacket = makeBytePacket(offset, filename, partialFileContent, 
+                    bytePacket = makeBytePacket(offset, filename, fromFile, 
                                                 packetNumber, bytesToSend, 
                                                 filenameLength);
 
                     // read bytes to send from <filename>
                     expectedAcks.push(packetNumber);
                     unAcked[packetNumber] = bytePacket;
-                    // cout << "Sending " << bytesToSend << " bytes at offset " << offset << " for file " << filename << endl;
+
                     offset += bytesToSend;
                     packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
 
                 // all bytes sent but not all packets acknowledged
                 } else {
-                    
                     while ((!expectedAcks.empty()) && (bytePacket == NULL)) {
                         int next = expectedAcks.top();
                         if ((unAcked[next] == NULL)) {
@@ -267,7 +219,9 @@ main(int argc, char *argv[]) {
                                 response = NULL;
                             } 
                         }
-                    } while (!noResponse);
+
+                    // loop only after all bytes were transmitted (after flood)
+                    } while (!noResponse && (offset == sourceSize));
 
                     free(bytePacketString);
                 }
@@ -276,6 +230,7 @@ main(int argc, char *argv[]) {
             }
 
             // close file, try until success
+            int closeResult  = 1;
             do {
                 closeResult = inputFile.fclose();
             } while (closeResult != 0 );
@@ -317,26 +272,9 @@ main(int argc, char *argv[]) {
             free(fileCheckPacketString);
             packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
 
-            /** Send packet to server alerting of successful transfer or fail **/
-
-            // // open file, try until success
-            // do {
-            //     filePtr = inputFile.fopen(srcFilename.c_str(), "rb");
-            // } while (filePtr == NULL);
-
-            // // read file, try until success
-            // do {
-            //     bytesRead = inputFile.fread(fileContent, 1, sourceSize);
-            // } while (bytesRead != sourceSize);
-
-            // // close file, try until success
-            // do {
-            //     closeResult = inputFile.fclose();
-            // } while (closeResult != 0 );
-
             // Create SHA1 hash for file from SRC Directory
             unsigned char localHash[20];
-            SHA1((const unsigned  char *)fileContent, bytesRead, localHash);
+            SHA1((const unsigned  char *)fileContent, sourceSize, localHash);
 
             // Create file status packet - marks success or fail 
             packet statusPacket = makeStatusPacket(localHash, response, packetNumber);

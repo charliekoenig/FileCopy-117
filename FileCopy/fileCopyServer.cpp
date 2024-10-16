@@ -67,67 +67,39 @@ main(int argc, char *argv[]) {
                     *GRADING << "File: " << fname << " received, beginning end-to-end check" << endl;
                     
                     NASTYFILE outputFile(fileNastiness);
-                    string targetName = makeTMPFileName(argv[TARGET_DIR], fname);
+                    string targetName = makeFileName(argv[TARGET_DIR], (fname + ".TMP"));
 
-                    unsigned char hashTMP[20];
-                    unsigned char memHash[20];
 
                     if (fileData[fname] == NULL) {
                         packetOut = makePacket('U', 0, packetNum(packetIn), NULL);
                     } else {
-                        SHA1((const unsigned char *)fileData[fname], fileLengths[fname], memHash);
                         
                         // redo the entire write if hashes are different
                         int currAttempt = 1;
+                        bool successfulWrite = true;
+                        int fileSize = fileLengths[fname];
+                        int offset = 0;
+                        unsigned char *content  = fileData[fname];
+                        unsigned char *partialContent = NULL;
+
                         do {
-                            // write to TMP file since file copy is done
-                            while (outputFile.fopen(targetName.c_str(), "wb") == NULL) {
-                                cerr << "Error opening input file " << targetName << 
-                                    " errno=" << strerror(errno) << endl;
-                            }
+                            int bytesToWrite = min(512, fileSize - offset);
+                            partialContent = content + offset;
 
-                            while ((int) outputFile.fwrite(fileData[fname], 1, fileLengths[fname]) != fileLengths[fname]) {
-                                cerr << "Error writing file " << targetName << 
-                                    "  errno=" << strerror(errno) << endl;
-                            }
+                            successfulWrite = safeFWrite(bytesToWrite, outputFile, 1, 
+                                                        partialContent, offset, fname);
+
+                            offset += bytesToWrite;
                             
-                            while (outputFile.fclose() != 0) {
-                                cerr << "Error closing output file " << targetName << 
-                                    " errno=" << strerror(errno) << endl;
-                            }
-
-                            // read from TMP file for end to end check
-                            while (outputFile.fopen(targetName.c_str(), "rb") == NULL) {
-                                cerr << "Error opening input file " << targetName << 
-                                    " errno=" << strerror(errno) << endl;
-                            }
-
-                            char *readFromTMP = (char *)malloc(fileLengths[fname]);
-
-                            while ((ssize_t) outputFile.fread(readFromTMP, 1, fileLengths[fname]) != fileLengths[fname]) {
-                                cerr << "Error reading file " << targetName << 
-                                    "  errno=" << strerror(errno) << endl;
-                            }
-                            
-                            while (outputFile.fclose() != 0) {
-                                cerr << "Error closing output file " << targetName << 
-                                    " errno=" << strerror(errno) << endl;
-                            }
-
-                            // cout << "Attempt " << currAttempt << " comparing hash\n";
-                            *GRADING << "File: " << fname << " writing to TMP after hash comparison with memory, attempt " << currAttempt << endl;
-                            currAttempt += 1;
-
-                            // compare hashes of filecontent and readFromTMP
-                            SHA1((const unsigned char *)readFromTMP, fileLengths[fname], hashTMP);
-
-                            free(readFromTMP);
-                            
-                        } while (!(strncmp((const char *) hashTMP, (const char *) memHash, 20) == 0));
-
+                        } while (successfulWrite && (offset < fileSize));
+                        
+                        *GRADING << "File: " << fname << " written to TMP" << currAttempt << endl;
                         *GRADING << "File: " << fname << " sending sha1 to client" << endl;
 
-                        packetOut = makeHashPacket(packetIn, hashTMP);
+                        unsigned char memHash[20];
+                        SHA1((const unsigned char *)content, fileLengths[fname], memHash);
+
+                        packetOut = makeHashPacket(packetIn, memHash);
                     }
 
                     break;
@@ -140,13 +112,14 @@ main(int argc, char *argv[]) {
                         cout<< "File: " << fname << " end-to-end check succeeded" << endl;
 
                         // returns an int, do we want to do while?
-                        rename((const char *) makeTMPFileName(argv[TARGET_DIR], fname).c_str(), (const char *)makeFileName(argv[TARGET_DIR], fname).c_str());
+                        rename((const char *) makeFileName(argv[TARGET_DIR], (fname + ".TMP")).c_str(), 
+                               (const char *)makeFileName(argv[TARGET_DIR], fname).c_str());
                     } else if (packetContent(packetIn)[0] == 'F') {
                         *GRADING << "File: " << fname << " end-to-end check failed" << endl;
                         cout << "File: " << fname << " end-to-end check failed" << endl;
 
                         // 0 means success
-                        remove((const char *) makeTMPFileName(argv[TARGET_DIR], fname).c_str());
+                        remove((const char *) makeFileName(argv[TARGET_DIR], (fname + ".TMP")).c_str());
                     }
 
                     if (fileData[fname] == NULL) {
@@ -221,18 +194,4 @@ main(int argc, char *argv[]) {
     }
 
     return 0;
-}
-
-string
-makeTMPFileName(string dir, string name) {
-  stringstream ss;
-
-  ss << dir;
-  // make sure dir name ends in /
-  if (dir.substr(dir.length()-1,1) != "/")
-    ss << '/';
-  ss << name;     // append file name to dir
-  ss << ".TMP";
-  return ss.str();  // return dir/name
-  
 }
