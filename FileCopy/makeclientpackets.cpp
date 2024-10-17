@@ -66,19 +66,5 @@ makeBytePacket(int offset, char *filename, unsigned char *fileContent, int packe
     memcpy(content + filenameIndex, filename, filenameLength);
     memcpy(content + fileContentIndex, fileContent, bytesRead);
 
-    // todo memcpy
-    // for (int index = 0; index < contentLength; index++) {
-    //     if (index >= fileContentIndex) {
-    //         content[index] = fileContent[(index - fileContentIndex) + offset];
-    //     } else if (index >= filenameIndex) {
-    //         content[index] = filename[index - filenameIndex];
-    //     } else if (index == 3) {
-    //         content[index] = (unsigned char)filenameLength;
-    //     } else {
-    //         content[index] = (unsigned char)(offset >> ((2 - index) * 8) & 0xFF);
-    //     }
-    // }
-
-    // cout << "First char in packet " << packetNumber << ": " << fileContent[offset] << endl;
     return makePacket('B', contentLength, packetNumber, content);
 }

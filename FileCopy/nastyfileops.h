@@ -14,9 +14,10 @@ string makeFileName(string dir, string fname);
 bool isFile(string fname);
 
 bool safeFRead(unsigned int bytesToRead, NASTYFILE &inputFile, int size, 
-               unsigned char **data, int offset);
+               unsigned char *data, int offset);
 
 bool safeFWrite(unsigned int bytesToWrite, NASTYFILE &outputFile, int size, 
-                unsigned char *data, int offset, string targetName);
+                unsigned char *data, int offset, string targetName,
+                unsigned char *memFile);
 
 ssize_t readFile(string dir, string fname, int nastiness, unsigned char **obuff);

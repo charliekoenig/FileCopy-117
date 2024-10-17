@@ -80,14 +80,16 @@ main(int argc, char *argv[]) {
                         int fileSize = fileLengths[fname];
                         int offset = 0;
                         unsigned char *content  = fileData[fname];
-                        unsigned char *partialContent = NULL;
+                        unsigned char *toWrite = NULL;
+                        unsigned char fileInMemory[fileSize] = {};
 
                         do {
                             int bytesToWrite = min(512, fileSize - offset);
-                            partialContent = content + offset;
+                            toWrite = content + offset;
 
                             successfulWrite = safeFWrite(bytesToWrite, outputFile, 1, 
-                                                        partialContent, offset, targetName);
+                                                        toWrite, offset, targetName,
+                                                        fileInMemory);
 
                             offset += bytesToWrite;
                             
@@ -96,10 +98,10 @@ main(int argc, char *argv[]) {
                         *GRADING << "File: " << fname << " written to TMP" << currAttempt << endl;
                         *GRADING << "File: " << fname << " sending sha1 to client" << endl;
 
-                        unsigned char memHash[20];
-                        SHA1((const unsigned char *)content, fileLengths[fname], memHash);
+                        unsigned char diskHash[20];
+                        SHA1((const unsigned char *)fileInMemory, fileLengths[fname], diskHash);
 
-                        packetOut = makeHashPacket(packetIn, memHash);
+                        packetOut = makeHashPacket(packetIn, diskHash);
                     }
 
                     break;
@@ -139,17 +141,28 @@ main(int argc, char *argv[]) {
                         // malloc the bytes based on the parseCpacket
                         char *filenameRead = NULL;
                         ssize_t totalBytes = parseCPacket(packetIn, &filenameRead);
-                        string filenameReadString(filenameRead);
+                        string fString(filenameRead);
 
                         *GRADING << "File: " << filenameRead << " starting to receive file" << endl;
                         
-                        if (fileData[filenameReadString] == NULL) {
-                            fileData[filenameReadString] = (unsigned char *)malloc(totalBytes);
-                            fileLengths[filenameReadString] = totalBytes;
+                        if (fileData[fString] == NULL) {
+                            fileData[fString] = (unsigned char *)malloc(totalBytes);
+                            fileLengths[fString] = totalBytes;
                             packetOut = makeResCPacket(packetIn);
                         } else {
                             packetOut = makePacket('U', 0, packetNum(packetIn), NULL);
                         }
+
+                        NASTYFILE outputFile(fileNastiness);
+                        string targetName = makeFileName(argv[TARGET_DIR], (fString + ".TMP"));
+                        void *filePtr = NULL;
+
+                        do {
+                            filePtr = outputFile.fopen(targetName.c_str(), "wb");
+                        } while (filePtr == NULL);
+
+                        outputFile.fclose();
+
                         free(filenameRead);
                         break;
                     }

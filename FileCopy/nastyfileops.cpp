@@ -65,22 +65,21 @@ isFile(string fname) {
 
 bool
 safeFRead(unsigned int bytesToRead, NASTYFILE &inputFile, int size, 
-          unsigned char **data, int offset) {
+          unsigned char *data, int offset) {
     size_t bytesRead = 0;
 
     float freq = 0;
     float tries = 0;
 
     unordered_map<string, float> contentStrings;
-    *data = (unsigned char *)malloc(bytesToRead);
 
     do {
         do {
             inputFile.fseek(offset, SEEK_SET);
-            bytesRead = inputFile.fread(*data, size, bytesToRead);
+            bytesRead = inputFile.fread(data, size, bytesToRead);
         } while (bytesRead != bytesToRead);
         
-        string contentStr((const char *) *data, bytesRead);
+        string contentStr((const char *) data, bytesRead);
         tries += 1;
 
         int hits = contentStrings[contentStr] += 1;
@@ -92,7 +91,7 @@ safeFRead(unsigned int bytesToRead, NASTYFILE &inputFile, int size,
 
 bool
 safeFWrite(unsigned int bytesToWrite, NASTYFILE &outputFile, int size, 
-           unsigned char *data, int offset, string targetName) {
+           unsigned char *data, int offset, string targetName, unsigned char *memFile) {
 
     int failedAttempts = 0;
     bool success       = false;
@@ -101,40 +100,53 @@ safeFWrite(unsigned int bytesToWrite, NASTYFILE &outputFile, int size,
     unsigned int bytesWritten = 0;
     int fileClosed = 1;
 
-    unsigned char *dataRead = NULL;
+    struct stat statbuf;
+    size_t bytesAppended;
+    int statReadSuccess = 0;
 
-    // try {
+    unsigned char dataRead[bytesToWrite];
+
+    do {
+        failedAttempts += 1;
+
         do {
-            failedAttempts += 1;
-            do {
-                filePtr = outputFile.fopen(targetName.c_str(), "wb");
-            } while (filePtr == NULL);
+            filePtr = outputFile.fopen(targetName.c_str(), "r+b");
+        } while (filePtr == NULL);
 
-            do {
-                outputFile.fseek(offset, SEEK_SET);
-                bytesWritten = outputFile.fwrite(data, 1, bytesToWrite);
-            } while (bytesWritten != bytesToWrite);
+        do {
+            outputFile.fseek(offset, SEEK_SET);
+            bytesWritten = outputFile.fwrite(data, 1, bytesToWrite);
+        } while (bytesWritten != bytesToWrite);
 
-            do {
-                fileClosed = outputFile.fclose(); 
-            } while (fileClosed != 0);
+        do {
+            fileClosed = outputFile.fclose(); 
+        } while (fileClosed != 0);
 
-            do {
-                filePtr = outputFile.fopen(targetName.c_str(), "rb");
-            } while (filePtr == NULL);
-            
-            safeFRead(bytesToWrite, outputFile, size, &dataRead, offset);
-            success = (memcmp(data, dataRead, bytesToWrite) == 0);
+        do {
+            statReadSuccess = lstat(targetName.c_str(), &statbuf);
+        } while (statReadSuccess != 0);
 
-            do {
-                fileClosed = outputFile.fclose(); 
-            } while (fileClosed != 0);
+        bytesAppended = statbuf.st_size - offset;
+        if (bytesAppended != bytesToWrite) {
+            continue;
+        }
 
-        } while (!success && (failedAttempts < 10));
-    // } catch (C150Exception& e) {
-    //     cerr << "nastyfiletest:copyfile(): Caught C150Exception: " << 
-    //             e.formattedExplanation() << endl;
-    // }
+        do {
+            filePtr = outputFile.fopen(targetName.c_str(), "rb");
+        } while (filePtr == NULL);
+        
+        safeFRead(bytesToWrite, outputFile, size, dataRead, offset); 
+        success = (memcmp(data, dataRead, bytesToWrite) == 0);
+
+        do {
+            fileClosed = outputFile.fclose(); 
+        } while (fileClosed != 0);
+
+    } while (!success && (failedAttempts < 10));
+
+    if (success) {
+        memcpy(memFile + offset, dataRead, bytesToWrite);
+    }
 
     return success;
 }

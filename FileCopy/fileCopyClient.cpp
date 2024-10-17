@@ -162,11 +162,11 @@ main(int argc, char *argv[]) {
                 if (offset < sourceSize) {
                     bytesToSend = min(bytesToSend, (int)(sourceSize - offset));
 
-                    unsigned char *fromFile = (unsigned char *)malloc(bytesToSend);
-                    if (!safeFRead(bytesToSend, inputFile, 1, &fromFile, offset)) {
-                        cerr << "freq never reached 75%\n";
-                        // retry with less bytes? divide by 2?
+                    unsigned char fromFile[bytesToSend];
+                    if (!safeFRead(bytesToSend, inputFile, 1, fromFile, offset)) {
+                        bytesToSend = max(256, (bytesToSend / 2));
                     } 
+
                     memcpy(fileContent + offset, fromFile, bytesToSend);
                     
                     bytePacket = makeBytePacket(offset, filename, fromFile, 
@@ -180,7 +180,9 @@ main(int argc, char *argv[]) {
                     offset += bytesToSend;
                     packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
 
-                // all bytes sent but not all packets acknowledged
+                    // reset bytesToSend in case of failure
+                    bytesToSend = MAX_READ - filenameLength;
+
                 } else {
                     while ((!expectedAcks.empty()) && (bytePacket == NULL)) {
                         int next = expectedAcks.top();
@@ -237,8 +239,7 @@ main(int argc, char *argv[]) {
             *GRADING << "File: " << filename << " transmission complete, waiting for end-to-end check, attempt " << fileCopyAttempts[filename] << endl;
 
             packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
-            int timeouts = max(500, (int)(sourceSize / 300));
-            sock -> turnOnTimeouts(timeouts);
+            sock -> turnOnTimeouts(max(500, (int)(sourceSize / 300)));
 
             /****  Send packet to server requesting end-to-end check ****/
             packet fileCheckPacket = makeFileCheckPacket(filename, packetNumber);
