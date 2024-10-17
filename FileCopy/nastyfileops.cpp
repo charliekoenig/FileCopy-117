@@ -1,3 +1,15 @@
+/**********************************************************
+               nastyfileops.cpp - 10/17/2024
+    Authors:
+        * Charlie Koenig
+        * Idil Kolabas
+        * Contributions from Noah Mendelsohn
+
+    This module provides operations to support the use 
+    of C150NASTYFILE including filename assembly, file
+    format checking, safe reading, and safe writing
+    
+***********************************************************/
 #include "nastyfileops.h"
 #include <openssl/sha.h>
 #include <cstring>
@@ -5,17 +17,20 @@
 using namespace std;
 using namespace C150NETWORK;
 
+
+
+
 /**********************************************************
  * Function: makeFileName
  
  * Parameters: 
-    * string dir -> Directory name containing the file
-    * string fname -> Name of the file within the directory
+    * string dir   : Directory name containing the file
+    * string fname : Name of the file within the directory
 
  * Return: A string representing a relative file path
 
- * written by: Noah Mendelsohn 
-   from: nastyfiletest.cpp
+ * Notes:
+    * written by: Noah Mendelsohn from: nastyfiletest.cpp
 ***********************************************************/
 string
 makeFileName(string dir, string fname) {
@@ -37,12 +52,12 @@ makeFileName(string dir, string fname) {
  * Function: isFile
 
  * Parameters: 
-    * string fname -> Relative path of a file
+    * string fname: Relative path of a file
 
  * Return: A boolean (true if fname is a file, false if not)
 
- * written by: Noah Mendelsohn 
-   from: nastyfiletest.cpp
+ * Notes:
+    * written by: Noah Mendelsohn from: nastyfiletest.cpp
 ***********************************************************/
 bool
 isFile(string fname) {
@@ -63,6 +78,23 @@ isFile(string fname) {
     return true;
 }
 
+/**********************************************************
+ * Function: safeFRead
+ 
+ * Parameters: 
+    * unsigned int bytesToRead : number of bytes to read from given file
+    * NASTYFILE &inputFile     : a reference to the NASTYFILE to read from
+    * int size                 : the size of data in bytes to read
+    * unsigned char *data      : char array to hold the data read from file
+    * int offset               : offset in the file to read from
+
+ * Return: A boolean representing a successful read
+
+ * Notes: 
+    * A successful read is defined as a read frequency of 75% after 50+ 
+      reads and before 200 reads
+    * Serves as a wrapper function for NASTYFILE's fread()
+***********************************************************/
 bool
 safeFRead(unsigned int bytesToRead, NASTYFILE &inputFile, int size, 
           unsigned char *data, int offset) {
@@ -74,21 +106,44 @@ safeFRead(unsigned int bytesToRead, NASTYFILE &inputFile, int size,
     unordered_map<string, float> contentStrings;
 
     do {
+
+        // jump to offset to read from
         do {
             inputFile.fseek(offset, SEEK_SET);
             bytesRead = inputFile.fread(data, size, bytesToRead);
         } while (bytesRead != bytesToRead);
         
+        // create key out of content read and increment hits
         string contentStr((const char *) data, bytesRead);
-        tries += 1;
-
         int hits = contentStrings[contentStr] += 1;
+
+        tries += 1;
         freq = hits/tries;
     } while ((freq < 0.75 || tries < 50) && tries < 200);
 
     return (freq >= 0.75);
 }
 
+
+/**********************************************************
+ * Function: safeFWrite
+ 
+ * Parameters: 
+    * unsigned int bytesToWrite : number of bytes to write to given file
+    * NASTYFILE &outputFile     : a reference to the NASTYFILE to write to
+    * int size                  : the size of data in bytes to write
+    * unsigned char *data       : char array holding that data to write
+    * int offset                : offset in the file to write from
+    * string targetName         : relative path of the file being written to
+    * unsigned char *memFile    : char pointer stores the data written to memory
+
+ * Return: A boolean representing a successful write
+
+ * Notes: 
+    * A successful write is defined as safeFRead reading the same values
+      as passed in through *data within 10 tries
+    * Makes at most 10 calls to safeFRead to certify a valid write
+***********************************************************/
 bool
 safeFWrite(unsigned int bytesToWrite, NASTYFILE &outputFile, int size, 
            unsigned char *data, int offset, string targetName, unsigned char *memFile) {
@@ -104,24 +159,29 @@ safeFWrite(unsigned int bytesToWrite, NASTYFILE &outputFile, int size,
     size_t bytesAppended;
     int statReadSuccess = 0;
 
+    // to store the newly written data read through safeFRead
     unsigned char dataRead[bytesToWrite];
 
     do {
         failedAttempts += 1;
 
+        // open file in r+b to avoid wiping data
         do {
             filePtr = outputFile.fopen(targetName.c_str(), "r+b");
         } while (filePtr == NULL);
 
+        // jump to offset in file
         do {
             outputFile.fseek(offset, SEEK_SET);
             bytesWritten = outputFile.fwrite(data, 1, bytesToWrite);
         } while (bytesWritten != bytesToWrite);
 
+        // close file before read
         do {
             fileClosed = outputFile.fclose(); 
         } while (fileClosed != 0);
 
+        // confirm new file length
         do {
             statReadSuccess = lstat(targetName.c_str(), &statbuf);
         } while (statReadSuccess != 0);
@@ -131,6 +191,7 @@ safeFWrite(unsigned int bytesToWrite, NASTYFILE &outputFile, int size,
             continue;
         }
 
+        // reopen file and perform safeFRead
         do {
             filePtr = outputFile.fopen(targetName.c_str(), "rb");
         } while (filePtr == NULL);
@@ -138,91 +199,16 @@ safeFWrite(unsigned int bytesToWrite, NASTYFILE &outputFile, int size,
         safeFRead(bytesToWrite, outputFile, size, dataRead, offset); 
         success = (memcmp(data, dataRead, bytesToWrite) == 0);
 
+        // close file
         do {
             fileClosed = outputFile.fclose(); 
         } while (fileClosed != 0);
 
     } while (!success && (failedAttempts < 10));
 
-    if (success) {
+    if (success && (memFile != NULL)) {
         memcpy(memFile + offset, dataRead, bytesToWrite);
     }
 
     return success;
-}
-
-/**********************************************************
- * Function: readFile
-
- * Parameters: 
-    * string dir -> Directory containing file
-    * string fname -> File name
-    * int nastiness -> File reading nastiness level
-    * unsigned char **obuff -> Pointer to output buffer to hold file contents
-
- * Return: Length of file as ssize_t, -1 if failure
-
- * Notes: 
-    * Allocates memory for *obuff that must be freed by caller
-    * Exits program on unsuccessful file operations
-***********************************************************/
-ssize_t
-readFile(string dir, string fname, int nastiness, unsigned char **obuff) {
-    struct stat statbuff;
-    void *fopenretval;
-    size_t length;
-    size_t sourceSize;
-
-    // combines directory and file name for full relative file path
-    string fullFilePath = makeFileName(dir, fname);
-
-    // checks that the name given is a file
-    if (!isFile(fullFilePath)) {
-        cerr << "Input file " << fullFilePath << " is a directory or other non-regular file. Skipping" << endl;
-        return -1; 
-    }
-
-    try {
-        if (lstat(fullFilePath.c_str(), &statbuff) != 0) {
-            fprintf(stderr,"copyFile: Error stating supplied source file %s\n", fullFilePath.c_str());
-            exit(20);
-        }
-
-        // allocate space for *obuff to hold file contents
-        sourceSize = statbuff.st_size;
-        *obuff = (unsigned char *)malloc(sourceSize);
-        
-        // create nasty file based on nastiness given
-        NASTYFILE inputFile(nastiness); 
-
-        // open the file, exit on failure
-        fopenretval = inputFile.fopen(fullFilePath.c_str(), "rb");  
-        if (fopenretval == NULL) {
-            cerr << "Error opening input file " << fullFilePath << " errno=" << strerror(errno) << endl;
-            exit(12);
-        }
-
-        // read entire file, exit if bytes read is not equal to file length
-        length = inputFile.fread(*obuff, 1, sourceSize);
-        if (length != sourceSize) {
-            cerr << "Error reading file " << fullFilePath << " errno=" << strerror(errno) << endl;
-            exit(16);
-        }
-
-        // close input file, exit on failure
-        if (inputFile.fclose() != 0 ) {
-            cerr << "Error closing input file " << fullFilePath << " errno=" << strerror(errno) << endl;
-            exit(16);
-        }
-
-        return length;
-
-    } catch (C150Exception& e) {
-        if (*obuff != NULL) {
-            free(*obuff);
-        }
-        cerr << "endtoendserver:readfile(): Caught C150Exception: " << e.formattedExplanation() << endl;
-    } 
-
-    return -1;
 }

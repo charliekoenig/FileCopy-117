@@ -1,18 +1,17 @@
 #include "packetstruct.h"
 #include <cstring>
 #include <string>
-
-//testing
-#include <ostream>
+#include <cassert>
 #include <iostream>
 
 using namespace std;
+
 
 struct packetStruct {
     char opcode;               // 8  bits
     unsigned int length;       // 10 bits
     unsigned int packetNum;    // 14 bits
-    char *content;             // 508 bytes
+    char *content;             // Max 508 bytes
 };
 
 packet makePacket(char opcode, int contentLength, int packetNum, char *content) {
@@ -33,6 +32,8 @@ packet makePacket(char opcode, int contentLength, int packetNum, char *content) 
 }
 
 packet stringToPacket(unsigned char *packetString) {
+    assert(packetString != NULL);
+
     char opcode = packetString[0];
     int contentLength = ((packetString[1] << 2) + (packetString[2] >> 6)) - 5;
     int packetNumber = ((packetString[2] & 0x3F) << 8) + packetString[3];
@@ -47,26 +48,32 @@ packet stringToPacket(unsigned char *packetString) {
 
 char *
 packetContent(packet packet) {
+    assert(packet != NULL);
     return packet->content;
 }
 
 int  
 packetLength(packet packet) {
+    assert(packet != NULL);
     return packet->length;
 }
 
 int  
 packetNum(packet packet) {
+    assert(packet != NULL);
     return packet->packetNum;
 }
 
 char 
 packetOpcode(packet packet) {
+    assert(packet != NULL);
     return packet->opcode;
 }
 
 char *
 packetToString(packet packet) {
+    assert(packet != NULL);
+
     int length = packetLength(packet);
     int packetNumber = packetNum(packet);
     char *packetString = (char *)malloc(length);
@@ -87,6 +94,8 @@ packetToString(packet packet) {
 
 bool 
 packetCompare(packet p1, packet p2) {
+    assert((p1 != NULL) && (p2 != NULL));
+
     int p1Len = packetLength(p1);
     int p2Len = packetLength(p2);
 
@@ -111,6 +120,9 @@ packetCompare(packet p1, packet p2) {
 
 void
 printContent(packet packet) {
+    assert(packet != NULL);
+
+
     int contentLength = packetLength(packet) - 5;
     for (int i = 0; i < contentLength; i++) {
         printf("%c", packetContent(packet)[i]);
@@ -120,6 +132,8 @@ printContent(packet packet) {
 
 void
 printPacket(packet packet) {
+    assert(packet != NULL);
+
     printf("PACKET CONTENTS\n");
     cout << packetOpcode(packet) << endl;
     printf("%d\n", packetLength(packet));
@@ -128,7 +142,10 @@ printPacket(packet packet) {
     cout << "_________________________" << endl; 
 }
 
+
 void freePacket(packet packet) {
+    assert(packet != NULL);
+
     free(packet->content);
     free(packet);
 }
