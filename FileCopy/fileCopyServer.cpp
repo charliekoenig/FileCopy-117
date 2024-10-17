@@ -81,7 +81,9 @@ main(int argc, char *argv[]) {
                         int offset = 0;
                         unsigned char *content  = fileData[fname];
                         unsigned char *toWrite = NULL;
-                        unsigned char fileInMemory[fileSize] = {};
+
+                        // this is large do we want to malloc?
+                        unsigned char *diskFile = (unsigned char  *)calloc(fileSize, sizeof(*diskFile));
 
                         do {
                             int bytesToWrite = min(512, fileSize - offset);
@@ -89,7 +91,7 @@ main(int argc, char *argv[]) {
 
                             successfulWrite = safeFWrite(bytesToWrite, outputFile, 1, 
                                                         toWrite, offset, targetName,
-                                                        fileInMemory);
+                                                        diskFile);
 
                             offset += bytesToWrite;
                             
@@ -99,8 +101,9 @@ main(int argc, char *argv[]) {
                         *GRADING << "File: " << fname << " sending sha1 to client" << endl;
 
                         unsigned char diskHash[20];
-                        SHA1((const unsigned char *)fileInMemory, fileLengths[fname], diskHash);
+                        SHA1((const unsigned char *)diskFile, fileLengths[fname], diskHash);
 
+                        free(diskFile);
                         packetOut = makeHashPacket(packetIn, diskHash);
                     }
 

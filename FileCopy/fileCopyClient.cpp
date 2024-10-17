@@ -163,7 +163,7 @@ main(int argc, char *argv[]) {
                     bytesToSend = min(bytesToSend, (int)(sourceSize - offset));
 
                     unsigned char fromFile[bytesToSend];
-                    if (!safeFRead(bytesToSend, inputFile, 1, fromFile, offset)) {
+                    while (!safeFRead(bytesToSend, inputFile, 1, fromFile, offset)) {
                         bytesToSend = max(256, (bytesToSend / 2));
                     } 
 
@@ -239,7 +239,7 @@ main(int argc, char *argv[]) {
             *GRADING << "File: " << filename << " transmission complete, waiting for end-to-end check, attempt " << fileCopyAttempts[filename] << endl;
 
             packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
-            sock -> turnOnTimeouts(max(500, (int)(sourceSize / 300)));
+            sock -> turnOnTimeouts(max(500, (int)(sourceSize / 200)));
 
             /****  Send packet to server requesting end-to-end check ****/
             packet fileCheckPacket = makeFileCheckPacket(filename, packetNumber);
@@ -250,21 +250,26 @@ main(int argc, char *argv[]) {
 
             noResponse = unexpectedPacket = true;
             attempts = 1;
-            while (noResponse || unexpectedPacket) {
+            while (unexpectedPacket) {
                 if (response != NULL) {
                     freePacket(response);
                     response = NULL;
                 }
 
                 sock -> write(fileCheckPacketString, packetLen);
-                sock -> read(incomingMessage, sizeof(incomingMessage));
-                noResponse = sock -> timedout();
 
-                if (!noResponse) {
-                    response = stringToPacket((unsigned char *)incomingMessage);
-                    unexpectedPacket = (packetOpcode(response) != 'H' ||
-                                        packetNum(response) != packetNumber);
-                }
+                do {
+                    sock -> read(incomingMessage, sizeof(incomingMessage));
+                    noResponse = sock -> timedout();
+
+                    if (!noResponse) {
+                        response = stringToPacket((unsigned char *)incomingMessage);
+                        unexpectedPacket = (packetOpcode(response) != 'H' ||
+                                            packetNum(response) != packetNumber);
+                    }
+
+                } while (!noResponse && unexpectedPacket);
+
                 
                 *GRADING << "File: " << filename << " attempt " << attempts << " to receive hash, in filecopy attempt " << fileCopyAttempts[filename] << endl;
                 attempts++;
