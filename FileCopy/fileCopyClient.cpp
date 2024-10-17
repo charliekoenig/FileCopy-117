@@ -83,7 +83,7 @@ main(int argc, char *argv[]) {
             if ((strcmp(filename, ".") == 0) || (strcmp(filename, "..")  == 0 )) 
                 continue;
 
-            bool noResponse = sock -> timedout();
+            bool noResponse = true;
             bool unexpectedPacket = true;
             
             /********* Open File and Preparce to transfer *********/
@@ -144,6 +144,7 @@ main(int argc, char *argv[]) {
             unsigned int offset = 0;
             int bytesToSend = MAX_READ - filenameLength;
 
+            // tracks unacknowleged packet numbers and the corresponding packet
             unordered_map<int, packet> unAcked;
             stack<int> expectedAcks;
             packet bytePacket = NULL;
@@ -164,6 +165,7 @@ main(int argc, char *argv[]) {
                     bytesToSend = min(bytesToSend, (int)(sourceSize - offset));
 
                     unsigned char fromFile[bytesToSend];
+                    // on a failed read try a smallet byte count
                     while (!safeFRead(bytesToSend, inputFile, 1, fromFile, offset)) {
                         bytesToSend = max(256, (bytesToSend / 2));
                     } 
@@ -181,12 +183,16 @@ main(int argc, char *argv[]) {
                     offset += bytesToSend;
                     packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
 
-                    // reset bytesToSend in case of failure
+                    // reset bytesToSend in case of failed read
                     bytesToSend = MAX_READ - filenameLength;
 
+                // full file has been transmitted, not all packets acknowledged
                 } else {
                     while ((!expectedAcks.empty()) && (bytePacket == NULL)) {
+                        // potentially unacknowleged packet number
                         int next = expectedAcks.top();
+
+                        // check if packet was freed (acknowledged)
                         if ((unAcked[next] == NULL)) {
                             expectedAcks.pop();
                         } else {
@@ -211,6 +217,8 @@ main(int argc, char *argv[]) {
 
                             if ((packetOpcode(response) == 'R') && (packetContent(response)[0] == 'B')) {
                                 int sentPacketNumber = packetNum(response);
+
+                                // free the acknowledged packet
                                 if (unAcked[sentPacketNumber] != NULL) {
                                     freePacket(unAcked[sentPacketNumber]);
                                     unAcked[sentPacketNumber] = NULL;
@@ -222,12 +230,10 @@ main(int argc, char *argv[]) {
                                 response = NULL;
                             } 
                         }
-
-                    // loop only after all bytes were transmitted (after flood)
                     } while (!noResponse);
-
                     free(bytePacketString);
                 }
+
                 bytePacket = NULL;
             }
 
@@ -246,7 +252,6 @@ main(int argc, char *argv[]) {
             packet fileCheckPacket = makeFileCheckPacket(filename, packetNumber);
             char *fileCheckPacketString = packetToString(fileCheckPacket);
             packetLen = packetLength(fileCheckPacket);
-
             freePacket(fileCheckPacket);
 
             noResponse = unexpectedPacket = true;
@@ -257,9 +262,9 @@ main(int argc, char *argv[]) {
                     response = NULL;
                 }
 
-                sock -> write(fileCheckPacketString, packetLen);
-
+                // read until timeout or expected packet is delivered
                 do {
+                    sock -> write(fileCheckPacketString, packetLen);
                     sock -> read(incomingMessage, sizeof(incomingMessage));
                     noResponse = sock -> timedout();
 
@@ -269,7 +274,7 @@ main(int argc, char *argv[]) {
                                             packetNum(response) != packetNumber);
                     }
 
-                } while (!noResponse && unexpectedPacket);
+                } while (noResponse);
 
                 
                 *GRADING << "File: " << filename << " attempt " << attempts << " to receive hash, in filecopy attempt " << fileCopyAttempts[filename] << endl;
@@ -297,48 +302,40 @@ main(int argc, char *argv[]) {
             attempts = 1;
             noResponse = true, unexpectedPacket = true;
 
-            while (noResponse || unexpectedPacket) {
+            if (statusPacketString[4] == 'S') {
+                *GRADING << "File: " << filename << " end-to-end check succeeded, attempt " << fileCopyAttempts[filename] << endl;
+            } else if (statusPacketString[4] == 'F') {
+                *GRADING << "File: " << filename << " end-to-end check failed, attempt " << fileCopyAttempts[filename] << endl;
+
+                // push file to back of queue to be retransmitted
+                noahsFiles.push(filename);
+                fileCopyAttempts[filename] += 1;
+            }
+
+
+            while (unexpectedPacket) {
+                do {
+                    sock -> write(statusPacketString, packetLen);
+                    sock -> read(incomingMessage, sizeof(incomingMessage));
+                    noResponse = sock -> timedout();
+                } while (noResponse);
+
+                response = stringToPacket((unsigned char *) incomingMessage);
+                unexpectedPacket = (packetOpcode(response) != 'A' ||
+                                    packetNum(response) != packetNumber);
+
                 if (response != NULL) {
-                    freePacket(response);
-                    response = NULL;
+                        freePacket(response);
+                        response = NULL;
                 }
-
-                if (statusPacketString[4] == 'S') {
-                    cerr << "SUCCESS: " << filename << endl;
-                    *GRADING << "File: " << filename << " end-to-end check succeeded, attempt " << fileCopyAttempts[filename] << endl;
-                } else if (statusPacketString[4] == 'F') {
-                    cerr << "FAILURE: " << filename << endl;
-                    *GRADING << "File: " << filename << " end-to-end check failed, attempt " << fileCopyAttempts[filename] << endl;
-                    fileCopyAttempts[filename] += 1;
-                    noahsFiles.push(filename);
-                }
-
-                sock -> write(statusPacketString, packetLen);
-                sock -> read(incomingMessage, sizeof(incomingMessage));
-                noResponse = sock -> timedout();
-
-                if (!noResponse) {
-                    response = stringToPacket((unsigned char *) incomingMessage);
-                    unexpectedPacket = (packetOpcode(response) != 'A' ||
-                                        packetNum(response) != packetNumber);
-                }
-                attempts++;
             }
             
-            if (response != NULL) {
-                    freePacket(response);
-                    response = NULL;
-            }
 
             free(statusPacketString);
             packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
 
             free(fileContent);
             fileContent = NULL;
-
-            // cout << "_______________________________" << endl;
-            // packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
-
         }
 
         delete sock;

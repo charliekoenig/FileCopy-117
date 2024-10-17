@@ -42,7 +42,7 @@ main(int argc, char *argv[]) {
     unordered_map<string, unsigned char *> fileData;
     unordered_map<string, ssize_t> fileLengths;
     unordered_map<string, unordered_set<int>> fileBytesFilled;
-    unordered_set<string> fileCopyData;
+    unordered_map<string, packet> computedHashes;
 
     int i = 0;
     try {
@@ -69,42 +69,49 @@ main(int argc, char *argv[]) {
                     NASTYFILE outputFile(fileNastiness);
                     string targetName = makeFileName(argv[TARGET_DIR], (fname + ".TMP"));
 
-
                     if (fileData[fname] == NULL) {
                         packetOut = makePacket('U', 0, packetNum(packetIn), NULL);
+                    } else if (computedHashes[fname] != NULL) {
+                        packetOut = computedHashes[fname];
                     } else {
-                        
-                        // redo the entire write if hashes are different
                         int currAttempt = 1;
-                        bool successfulWrite = true;
+                        bool success = true;
                         int fileSize = fileLengths[fname];
-                        int offset = 0;
+
+                        // full file from server
                         unsigned char *content  = fileData[fname];
-                        unsigned char *toWrite = NULL;
 
-                        // this is large do we want to malloc?
-                        unsigned char *diskFile = (unsigned char  *)calloc(fileSize, sizeof(*diskFile));
+                        // will point to index in content
+                        unsigned char *data = NULL;
 
+                        // fill diskFile array through reads from memory immediatley after writes
+                        unsigned char *diskFile = (unsigned char *)calloc(fileSize, sizeof(*diskFile));
+
+                        int writeBuff = 0;
+                        int offset    = 0;
                         do {
-                            int bytesToWrite = min(512, fileSize - offset);
-                            toWrite = content + offset;
+                            writeBuff = min(512, fileSize - offset);
+                            data = content + offset;
 
-                            successfulWrite = safeFWrite(bytesToWrite, outputFile, 1, 
-                                                        toWrite, offset, targetName,
-                                                        diskFile);
-
-                            offset += bytesToWrite;
+                            // success if file memory matches heap memory
+                            success = safeFWrite(writeBuff, outputFile, 1, data, 
+                                                 offset, targetName, diskFile);
+                            offset += writeBuff;
                             
-                        } while (successfulWrite && (offset < fileSize));
+                        } while (success && (offset < fileSize));
                         
                         *GRADING << "File: " << fname << " written to TMP" << currAttempt << endl;
                         *GRADING << "File: " << fname << " sending sha1 to client" << endl;
 
+                        // create hash from file on disk
                         unsigned char diskHash[20];
                         SHA1((const unsigned char *)diskFile, fileLengths[fname], diskHash);
 
                         free(diskFile);
                         packetOut = makeHashPacket(packetIn, diskHash);
+
+                        // save hash packet for lost/delayed transmission
+                        computedHashes[fname] = packetOut;
                     }
 
                     break;
@@ -112,26 +119,31 @@ main(int argc, char *argv[]) {
                 case 'S':
                 {
                     string fname(packetContent(packetIn) + 1);
+                    string TMPname = makeFileName(argv[TARGET_DIR], (fname + ".TMP"));
+
                     if (packetContent(packetIn)[0] == 'S') {
                         *GRADING << "File: " << fname << " end-to-end check succeeded" << endl;
-                        cout<< "File: " << fname << " end-to-end check succeeded" << endl;
+                        cout << "File: " << fname << " end-to-end check succeeded" << endl;
 
-                        // returns an int, do we want to do while?
-                        rename((const char *) makeFileName(argv[TARGET_DIR], (fname + ".TMP")).c_str(), 
-                               (const char *)makeFileName(argv[TARGET_DIR], fname).c_str());
+                        string newName = makeFileName(argv[TARGET_DIR], fname);
+                        rename(TMPname.c_str(), newName.c_str());
+
                     } else if (packetContent(packetIn)[0] == 'F') {
                         *GRADING << "File: " << fname << " end-to-end check failed" << endl;
-                        cout << "File: " << fname << " end-to-end check failed" << endl;
 
-                        // 0 means success
-                        remove((const char *) makeFileName(argv[TARGET_DIR], (fname + ".TMP")).c_str());
+                        remove(TMPname.c_str());
                     }
 
                     if (fileData[fname] == NULL) {
                         packetOut = makePacket('U', 0, packetNum(packetIn), NULL);
+
                     } else {
                         free(fileData[fname]);
+                        freePacket(computedHashes[fname]);
+
                         fileData[fname] = NULL;
+                        computedHashes[fname] = NULL;
+
                         fileBytesFilled[fname].clear();
 
                         packetOut = makeAckPacket(packetIn);
@@ -152,20 +164,19 @@ main(int argc, char *argv[]) {
                             fileData[fString] = (unsigned char *)malloc(totalBytes);
                             fileLengths[fString] = totalBytes;
                             packetOut = makeResCPacket(packetIn);
+
+                            NASTYFILE outputFile(fileNastiness);
+                            string targetName = makeFileName(argv[TARGET_DIR], (fString + ".TMP"));
+                            void *filePtr = NULL;
+
+                            do {
+                                filePtr = outputFile.fopen(targetName.c_str(), "wb");
+                            } while (filePtr == NULL);
+
+                            outputFile.fclose();
                         } else {
                             packetOut = makePacket('U', 0, packetNum(packetIn), NULL);
                         }
-
-                        NASTYFILE outputFile(fileNastiness);
-                        string targetName = makeFileName(argv[TARGET_DIR], (fString + ".TMP"));
-                        void *filePtr = NULL;
-
-                        do {
-                            filePtr = outputFile.fopen(targetName.c_str(), "wb");
-                        } while (filePtr == NULL);
-
-                        outputFile.fclose();
-
                         free(filenameRead);
                         break;
                     }
@@ -199,7 +210,9 @@ main(int argc, char *argv[]) {
             const char *outgoingContent = packetToString(packetOut);
 
             sock -> write(outgoingContent, packetLength(packetOut));
-            freePacket(packetOut);
+            if (packetOpcode(packetOut) != 'H') {
+                freePacket(packetOut);
+            }
             freePacket(packetIn);
             free((void *)outgoingContent);
             i++;
