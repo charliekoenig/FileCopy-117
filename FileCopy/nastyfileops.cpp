@@ -103,7 +103,7 @@ safeFWrite(unsigned int bytesToWrite, NASTYFILE &outputFile, int size,
 
     unsigned char *dataRead = NULL;
 
-    try {
+    // try {
         do {
             failedAttempts += 1;
             do {
@@ -124,19 +124,19 @@ safeFWrite(unsigned int bytesToWrite, NASTYFILE &outputFile, int size,
             } while (filePtr == NULL);
             
             safeFRead(bytesToWrite, outputFile, size, &dataRead, offset);
-            success = memcmp(data, dataRead, bytesToWrite);
+            success = (memcmp(data, dataRead, bytesToWrite) == 0);
 
             do {
                 fileClosed = outputFile.fclose(); 
             } while (fileClosed != 0);
 
         } while (!success && (failedAttempts < 10));
-    } catch (C150Exception& e) {
-        cerr << "nastyfiletest:copyfile(): Caught C150Exception: " << 
-                e.formattedExplanation() << endl;
-    }
+    // } catch (C150Exception& e) {
+    //     cerr << "nastyfiletest:copyfile(): Caught C150Exception: " << 
+    //             e.formattedExplanation() << endl;
+    // }
 
-    return failedAttempts < 10;
+    return success;
 }
 
 /**********************************************************

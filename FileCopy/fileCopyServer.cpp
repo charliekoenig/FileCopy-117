@@ -87,7 +87,7 @@ main(int argc, char *argv[]) {
                             partialContent = content + offset;
 
                             successfulWrite = safeFWrite(bytesToWrite, outputFile, 1, 
-                                                        partialContent, offset, fname);
+                                                        partialContent, offset, targetName);
 
                             offset += bytesToWrite;
                             
