@@ -1,9 +1,35 @@
-#include "makeclientpackets.h"
+/**********************************************************
+               UDPclientpackets.cpp - 10/17/2024
+    Authors:
+        * Charlie Koenig
+        * Idil Kolabas
+
+    This module provides an implementation for the 
+    UDPclientpackets interface, useful for sending data
+    over the C150NETWORK from the client to the server
+    and for parsing data sent by the server to the client
+    
+***********************************************************/
+
+#include "UDPclientpackets.h"
 #include <cstring>
 
-#include <iostream>
 using namespace std;
 
+
+/***************************************************************
+ * Function: makeCopyPacket
+
+ * Parameters: 
+   * ssize_t fileLen  : Length of the file reffered to in bytes
+   * char *filename   : null terminated array hold the filename
+   * int packetNumber : unique packet identifier
+
+ * Return: A pointer to a packetStruct
+
+ * Notes: 
+   * Allocates memory for packetStruct in call to makePacket()
+****************************************************************/
 packet 
 makeCopyPacket(ssize_t fileLen, char *filename, int packetNumber) {
     int bytes = sizeof(fileLen);
@@ -21,6 +47,21 @@ makeCopyPacket(ssize_t fileLen, char *filename, int packetNumber) {
     return makePacket('C', contentLen, packetNumber, content);
 }
 
+
+/***************************************************************
+ * Function: makeStatusPacket
+
+ * Parameters: 
+   * unsigned char *clientHash : the clients SHA1 hash
+   * packet hashPacket         : a packetStruct pointer holding
+                                 the server's SHA1 hash
+   * int packetNumber          : unique packet identifier
+
+ * Return: A pointer to a packetStruct
+
+ * Notes: 
+   * Allocates memory for packetStruct in call to makePacket()
+****************************************************************/
 packet 
 makeStatusPacket(unsigned char *clientHash, packet hashPacket, int packetNumber) {
     int incomingContentLength = packetLength(hashPacket) - 5;

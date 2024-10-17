@@ -57,20 +57,20 @@ endtoendclient: endtoendClient.cpp nastyfileops.cpp packetstruct.cpp $(C150AR) $
 #
 # Build the endtoendServer
 #
-endtoendserver: endtoendServer.cpp nastyfileops.cpp packetstruct.cpp makeserverpackets.cpp $(C150AR) $(INCLUDES)
-	$(CPP) -o endtoendserver  $(CPPFLAGS) endtoendServer.cpp nastyfileops.cpp packetstruct.cpp makeserverpackets.cpp $(C150AR) -lssl -lcrypto
+endtoendserver: endtoendServer.cpp nastyfileops.cpp packetstruct.cpp UDPserverpackets.cpp $(C150AR) $(INCLUDES)
+	$(CPP) -o endtoendserver  $(CPPFLAGS) endtoendServer.cpp nastyfileops.cpp packetstruct.cpp UDPserverpackets.cpp $(C150AR) -lssl -lcrypto
 
 #
 # Build the filecopyclient
 #
-filecopyclient: fileCopyClient.cpp nastyfileops.cpp packetstruct.cpp makeclientpackets.cpp $(C150AR) $(INCLUDES)
-	$(CPP) -o filecopyclient  $(CPPFLAGS) fileCopyClient.cpp nastyfileops.cpp packetstruct.cpp makeclientpackets.cpp $(C150AR) -lssl -lcrypto
+filecopyclient: fileCopyClient.cpp nastyfileops.cpp packetstruct.cpp UDPclientpackets.cpp $(C150AR) $(INCLUDES)
+	$(CPP) -o filecopyclient  $(CPPFLAGS) fileCopyClient.cpp nastyfileops.cpp packetstruct.cpp UDPclientpackets.cpp $(C150AR) -lssl -lcrypto
 
 #
 # Build the filecopyserver
 #
-filecopyserver: fileCopyServer.cpp nastyfileops.cpp packetstruct.cpp makeserverpackets.cpp $(C150AR) $(INCLUDES)
-	$(CPP) -o filecopyserver  $(CPPFLAGS) fileCopyServer.cpp nastyfileops.cpp packetstruct.cpp makeserverpackets.cpp $(C150AR) -lssl -lcrypto
+filecopyserver: fileCopyServer.cpp nastyfileops.cpp packetstruct.cpp UDPserverpackets.cpp $(C150AR) $(INCLUDES)
+	$(CPP) -o filecopyserver  $(CPPFLAGS) fileCopyServer.cpp nastyfileops.cpp packetstruct.cpp UDPserverpackets.cpp $(C150AR) -lssl -lcrypto
 
 #
 # Build the nastyfiletest sample

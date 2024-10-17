@@ -3,7 +3,7 @@
 #include "c150grading.h"
 #include "nastyfileops.h"
 #include "packetstruct.h"
-#include "makeclientpackets.h"
+#include "UDPclientpackets.h"
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -27,7 +27,6 @@ const int MAX_READ         = 503;
 const int MAX_PACKET_NUM   = 0x3FFF;
 
 void checkDirectory(char *dirname);
-void parseHash(packet hashPacket, char *currFilename, unsigned char *parsedHash);
 
 int 
 main(int argc, char *argv[]) {
@@ -312,7 +311,7 @@ main(int argc, char *argv[]) {
                 fileCopyAttempts[filename] += 1;
             }
 
-
+            // send status packet until acknowledgement
             while (unexpectedPacket) {
                 do {
                     sock -> write(statusPacketString, packetLen);
@@ -329,6 +328,7 @@ main(int argc, char *argv[]) {
                         response = NULL;
                 }
             }
+            *GRADING << "File: " << filename << " copy completed, attempt " << fileCopyAttempts[filename] << endl;
             
 
             free(statusPacketString);
@@ -352,15 +352,14 @@ main(int argc, char *argv[]) {
  * Function: checkDirectory
  
  * Parameters: 
-    * char *dirname   -> possible directory name
+    * char *dirname : possible directory name
 
- * Return: nothing
+ * Return: none
 
- * Side Effects: prints error and exits program if dirname
-                 is not a valid directory name
-
- * written by: Noah Mendelsohn 
-   from: nastyfiletest.cpp
+ * Notes: 
+    * prints error and exits program if dirname is not a valid
+      directory name
+    * Written by: Noah Mendelsohn in nastyfiletest.cpp
 ***********************************************************/
 void
 checkDirectory(char *dirname) {
@@ -374,13 +373,4 @@ checkDirectory(char *dirname) {
         fprintf(stderr,"File %s exists but is not a directory\n", dirname);
         exit(8);
     }
-}
-
-void
-parseHash(packet hashPacket, char *currFilename, unsigned char *parsedHash) {
-
-    int hashLength = 20;
-    char *hashContent = packetContent(hashPacket);
-    memcpy(parsedHash, hashContent, hashLength);
-    (void) currFilename;
 }

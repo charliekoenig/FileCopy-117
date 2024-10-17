@@ -1,3 +1,14 @@
+/**********************************************************
+               packetstruct.cpp - 10/17/2024
+    Authors:
+        * Charlie Koenig
+        * Idil Kolabas
+
+    This module provides an implementation for the 
+    packetstruct interface, useful for sending data
+    over the C150NETWORK
+    
+***********************************************************/
 #include "packetstruct.h"
 #include <cstring>
 #include <string>
@@ -6,19 +17,47 @@
 
 using namespace std;
 
+/**********************************************************
+ * Struct: packetStruct
+ 
+ * Fields: 
+    * char opcode       : Operation requested by packing being created
+    * int contentLength : Length of the packet when converted to a strings
+    * int packetNum     : Identifier for packet, in range 0 to (2^14 - 1)
+    * char *content     : char pointer to the content of the new packet
 
+ * Notes: 
+    * packetstruct* is typedef'd as packet
+***********************************************************/
 struct packetStruct {
     char opcode;               // 8  bits
     unsigned int length;       // 10 bits
     unsigned int packetNum;    // 14 bits
-    char *content;             // Max 508 bytes
+    char *content;
 };
 
-packet makePacket(char opcode, int contentLength, int packetNum, char *content) {
+
+/**********************************************************
+ * Function: makePacket
+ 
+ * Parameters: 
+    * char opcode       : Operation requested by packing being created
+    * int contentLength : Length of the content section in the packet
+    * int packetNum     : Identifier for packet, in range 0 to (2^14 - 1)
+    * char *content     : char pointer to the content of the new packet
+
+ * Return: Address of a packetStruct with given values
+
+ * Notes: 
+    * Allocates memory for packet and content that must be freed by
+      the caller
+***********************************************************/
+packet 
+makePacket(char opcode, int contentLength, int packetNum, char *content) {
     packet newPacket = (packet)malloc(sizeof(*newPacket));
 
     newPacket->opcode = opcode;
-    newPacket->length = contentLength + 5;
+    newPacket->length = contentLength + 5;  // add for opcode, length, num, null
     newPacket->packetNum = packetNum;
 
     newPacket->content = (char *)malloc(contentLength + 1);
@@ -31,7 +70,23 @@ packet makePacket(char opcode, int contentLength, int packetNum, char *content) 
     return newPacket;
 }
 
-packet stringToPacket(unsigned char *packetString) {
+
+/**********************************************************
+ * Function: stringToPacket
+ 
+ * Parameters: 
+    * unsigned char *packetString : a null terminated array encoding packet
+                                    data
+
+ * Return: Address of a packetStruct with values that were encoded in string
+
+ * Notes: 
+    * CRE for packetString to be NULL
+    * Allocates memory for packet and content in makePacket call that must 
+      be freed by the caller
+***********************************************************/
+packet 
+stringToPacket(unsigned char *packetString) {
     assert(packetString != NULL);
 
     char opcode = packetString[0];
@@ -46,37 +101,100 @@ packet stringToPacket(unsigned char *packetString) {
     return makePacket(opcode, contentLength, packetNumber, content);
 }
 
+
+/**********************************************************
+ * Function: packetContent
+ 
+ * Parameters: 
+    * packet packet : a packetStruct pointer
+
+ * Return: Address of a char aray that is the packet's contents
+
+ * Notes: 
+    * CRE for packet to be NULL
+***********************************************************/
 char *
 packetContent(packet packet) {
     assert(packet != NULL);
     return packet->content;
 }
 
+
+/**********************************************************
+ * Function: packetLength
+ 
+ * Parameters: 
+    * packet packet : a packetStruct pointer
+
+ * Return: length field of the packetStruct
+
+ * Notes: 
+    * CRE for packet to be NULL
+***********************************************************/
 int  
 packetLength(packet packet) {
     assert(packet != NULL);
     return packet->length;
 }
 
+
+/**********************************************************
+ * Function: packetNum
+ 
+ * Parameters: 
+    * packet packet : a packetStruct pointer
+
+ * Return: packetNum field of the packetStruct
+
+ * Notes: 
+    * CRE for packet to be NULL
+***********************************************************/
 int  
 packetNum(packet packet) {
     assert(packet != NULL);
     return packet->packetNum;
 }
 
+
+/**********************************************************
+ * Function: packetOpcode
+ 
+ * Parameters: 
+    * packet packet : a packetStruct pointer
+
+ * Return: opcode field of the packetStruct
+
+ * Notes: 
+    * CRE for packet to be NULL
+***********************************************************/
 char 
 packetOpcode(packet packet) {
     assert(packet != NULL);
     return packet->opcode;
 }
 
+
+/**********************************************************
+ * Function: packetToString
+ 
+ * Parameters: 
+    * packet packet : a packetStruct pointer
+
+ * Return: a null terminated char array representation of the 
+           provided packet
+
+ * Notes: 
+    * CRE for packet to be NULL
+    * Allocates space for the returned C string that must be 
+      freed by the caller
+***********************************************************/
 char *
 packetToString(packet packet) {
     assert(packet != NULL);
 
-    int length = packetLength(packet);
-    int packetNumber = packetNum(packet);
-    char *packetString = (char *)malloc(length);
+    int length         = packetLength(packet);
+    int packetNumber   = packetNum(packet);
+    char *packetString = (char *) malloc(length);
     
     packetString[0] = packetOpcode(packet);
     packetString[1] = (length >> 2) & 0xFF;
@@ -92,6 +210,19 @@ packetToString(packet packet) {
     return packetString;
 }
 
+/**********************************************************
+ * Function: packetCompare
+ 
+ * Parameters: 
+    * packet p1 : a packetStruct pointer
+    * packet p2 : a packetStruct pointer
+
+ * Return: a boolean that is true if the packetStruct's fields
+           are equivalent, not including packetNumber
+
+ * Notes: 
+    * CRE for p1 or p2 to be NULL
+***********************************************************/
 bool 
 packetCompare(packet p1, packet p2) {
     assert((p1 != NULL) && (p2 != NULL));
@@ -109,7 +240,6 @@ packetCompare(packet p1, packet p2) {
         return false;
     }
 
-
     if ((memcmp(packetContent(p1), packetContent(p2), p1Len - 4) != 0)) {
         cout << "Content Wrong\n";
         return false;
@@ -118,10 +248,23 @@ packetCompare(packet p1, packet p2) {
     return true;
 }
 
+
+/**********************************************************
+ * Function: printContent
+ 
+ * Parameters: 
+    * packet packet : a packetStruct pointer
+
+ * Return: none
+
+ * Notes: 
+    * CRE for packet to be NULL
+    * Prints the bytes pointed to byt packetStrcut's content 
+      field to standard output
+***********************************************************/
 void
 printContent(packet packet) {
     assert(packet != NULL);
-
 
     int contentLength = packetLength(packet) - 5;
     for (int i = 0; i < contentLength; i++) {
@@ -130,6 +273,18 @@ printContent(packet packet) {
     cout << endl;
 }
 
+/**********************************************************
+ * Function: printPacket
+ 
+ * Parameters: 
+    * packet packet : a packetStruct pointer
+
+ * Return: none
+
+ * Notes: 
+    * CRE for packet to be NULL
+    * Prints the packetStrcut's fields to standard output
+***********************************************************/
 void
 printPacket(packet packet) {
     assert(packet != NULL);
@@ -143,7 +298,21 @@ printPacket(packet packet) {
 }
 
 
-void freePacket(packet packet) {
+/**********************************************************
+ * Function: freePacket
+ 
+ * Parameters: 
+    * packet packet : a packetStruct pointer
+
+ * Return: none
+
+ * Notes: 
+    * CRE for packet to be NULL
+    * Frees the heap allocated memory pointed to by the 
+      packetStruct's content field and the packetStruct
+***********************************************************/
+void 
+freePacket(packet packet) {
     assert(packet != NULL);
 
     free(packet->content);

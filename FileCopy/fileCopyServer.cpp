@@ -3,7 +3,7 @@
 #include "c150grading.h"
 #include "nastyfileops.h"
 #include "packetstruct.h"
-#include "makeserverpackets.h"
+#include "UDPserverpackets.h"
 #include <cstdlib>
 #include <sys/types.h>
 #include <unistd.h>
@@ -64,7 +64,6 @@ main(int argc, char *argv[]) {
                 case 'F':
                 {
                     string fname(packetContent(packetIn));
-                    *GRADING << "File: " << fname << " received, beginning end-to-end check" << endl;
                     
                     NASTYFILE outputFile(fileNastiness);
                     string targetName = makeFileName(argv[TARGET_DIR], (fname + ".TMP"));
@@ -73,8 +72,9 @@ main(int argc, char *argv[]) {
                         packetOut = makePacket('U', 0, packetNum(packetIn), NULL);
                     } else if (computedHashes[fname] != NULL) {
                         packetOut = computedHashes[fname];
+                        *GRADING << "File: " << fname << " hash request received after filecopy was done, sending its stored hash back" << endl;
                     } else {
-                        int currAttempt = 1;
+                        *GRADING << "File: " << fname << " received, beginning end-to-end check" << endl;
                         bool success = true;
                         int fileSize = fileLengths[fname];
 
@@ -100,7 +100,7 @@ main(int argc, char *argv[]) {
                             
                         } while (success && (offset < fileSize));
                         
-                        *GRADING << "File: " << fname << " written to TMP" << currAttempt << endl;
+                        *GRADING << "File: " << fname << " contents written to " << targetName << endl;
                         *GRADING << "File: " << fname << " sending sha1 to client" << endl;
 
                         // create hash from file on disk
@@ -123,7 +123,6 @@ main(int argc, char *argv[]) {
 
                     if (packetContent(packetIn)[0] == 'S') {
                         *GRADING << "File: " << fname << " end-to-end check succeeded" << endl;
-                        cout << "File: " << fname << " end-to-end check succeeded" << endl;
 
                         string newName = makeFileName(argv[TARGET_DIR], fname);
                         rename(TMPname.c_str(), newName.c_str());

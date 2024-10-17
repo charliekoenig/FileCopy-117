@@ -5,7 +5,8 @@
         * Idil Kolabas
         * Contributions from Noah Mendelsohn
 
-    This module provides operations to support the use 
+    This module is an implementation for the nastyfileops
+    interface. It's operations support the use 
     of C150NASTYFILE including filename assembly, file
     format checking, safe reading, and safe writing
     
@@ -16,7 +17,6 @@
 
 using namespace std;
 using namespace C150NETWORK;
-
 
 
 
