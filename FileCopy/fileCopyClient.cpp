@@ -155,7 +155,8 @@ main(int argc, char *argv[]) {
                 filePtr = inputFile.fopen(srcFilename.c_str(), "rb");
             } while (filePtr == NULL);
 
-            sock -> turnOnTimeouts(5);
+            // average # of miliseconds for server to process 'B' packet
+            sock -> turnOnTimeouts(4);
             while ((offset < sourceSize) || !expectedAcks.empty()) {
 
                 // there are still unsent bytes from the file
