@@ -58,7 +58,6 @@ main(int argc, char *argv[]) {
     try {
         C150DgmSocket *sock = new C150DgmSocket();
         sock -> setServerName(argv[SERVER_ARG]);
-        sock -> turnOnTimeouts(500);
 
         queue<char *> noahsFiles;
         struct dirent *sourceFile;
@@ -73,6 +72,7 @@ main(int argc, char *argv[]) {
         // add files to queue
         // loop for each file in the given directory
         while (!(noahsFiles.empty())) {
+            sock -> turnOnTimeouts(500);
 
             filename = noahsFiles.front();
             noahsFiles.pop();
@@ -221,11 +221,10 @@ main(int argc, char *argv[]) {
                         }
 
                     // loop only after all bytes were transmitted (after flood)
-                    } while (!noResponse && (offset == sourceSize));
+                    } while (!noResponse);
 
                     free(bytePacketString);
                 }
-
                 bytePacket = NULL;
             }
 
@@ -238,7 +237,8 @@ main(int argc, char *argv[]) {
             *GRADING << "File: " << filename << " transmission complete, waiting for end-to-end check, attempt " << fileCopyAttempts[filename] << endl;
 
             packetNumber = (packetNumber == MAX_PACKET_NUM) ? 0 : (packetNumber + 1);
-            sock -> turnOnTimeouts(500);
+            int timeouts = max(500, (int)(sourceSize / 300));
+            sock -> turnOnTimeouts(timeouts);
 
             /****  Send packet to server requesting end-to-end check ****/
             packet fileCheckPacket = makeFileCheckPacket(filename, packetNumber);
