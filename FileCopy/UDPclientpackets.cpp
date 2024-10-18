@@ -81,11 +81,41 @@ makeStatusPacket(unsigned char *clientHash, packet hashPacket, int packetNumber)
     return makePacket('S', outgoingContentLength, packetNumber, content);
 }
 
+
+/***************************************************************
+ * Function: makeFileCheckPacket
+
+ * Parameters: 
+   * char *filename   : name of file for checksum 
+   * int packetNumber : unique packet identifier
+
+ * Return: A pointer to a packetStruct
+
+ * Notes: 
+   * Allocates memory for packetStruct in call to makePacket()
+****************************************************************/
 packet 
 makeFileCheckPacket(char *filename, int packetNumber) {
     return makePacket('F', strlen(filename), packetNumber, filename);
 }
 
+
+/***************************************************************
+ * Function: makeBytePacket
+
+ * Parameters: 
+   * int offset                 : offset of bytes in original file 
+   * char *filename             : name of file being transferred
+   * unsigned char *fileContent : pointer to content to copy and send
+   * int packetNumber           : unique packet identifier
+   * int bytesRead              : # of bytes transferred in this packet
+   * int filenameLength         : length of filename
+
+ * Return: A pointer to a packetStruct
+
+ * Notes: 
+   * Allocates memory for packetStruct in call to makePacket()
+****************************************************************/
 packet
 makeBytePacket(int offset, char *filename, unsigned char *fileContent, int packetNumber,
                                             int bytesRead, int filenameLength) {
@@ -104,7 +134,11 @@ makeBytePacket(int offset, char *filename, unsigned char *fileContent, int packe
     content[1] = (unsigned char)(offset >> (1 * 8) & 0xFF);
     content[2] = (unsigned char)(offset & 0xFF);
     content[3] = (unsigned char)filenameLength;
+
+    // copy filename into indicies 4 through (4 + filenameLength)
     memcpy(content + filenameIndex, filename, filenameLength);
+
+    // copy content starting at index (4 + filenameLength)
     memcpy(content + fileContentIndex, fileContent, bytesRead);
 
     return makePacket('B', contentLength, packetNumber, content);

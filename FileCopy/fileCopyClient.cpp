@@ -1,3 +1,16 @@
+/**********************************************************
+               flieCopyClient.cpp - 10/17/2024
+    Authors:
+        * Charlie Koenig
+        * Idil Kolabas
+
+    A program to imitate a UDP endpoint in a file transfer
+    protocol. This client transfers files in a source 
+    directory to a server through an unreliable network 
+    and file services. It implements an end-to-end check
+    with a SHA1 hash to confirm succcessful transfer
+    
+***********************************************************/
 #include "c150nastydgmsocket.h"
 #include "c150debug.h"
 #include "c150grading.h"

@@ -1,3 +1,16 @@
+/**********************************************************
+               flieCopyServer.cpp - 10/17/2024
+    Authors:
+        * Charlie Koenig
+        * Idil Kolabas
+
+    A program to imitate a UDP endpoint in a file transfer
+    protocol. This server handles file transfer through 
+    packets of data on unreliable networks and faulty
+    disk management. It implements an end-to-end check
+    through a SHA1 hash to confirm a successful transfer.
+    
+***********************************************************/
 #include "c150nastydgmsocket.h"
 #include "c150debug.h"
 #include "c150grading.h"
@@ -68,11 +81,16 @@ main(int argc, char *argv[]) {
                     NASTYFILE outputFile(fileNastiness);
                     string targetName = makeFileName(argv[TARGET_DIR], (fname + ".TMP"));
 
+                    // no file with filename = fname in transfer
                     if (fileData[fname] == NULL) {
                         packetOut = makePacket('U', 0, packetNum(packetIn), NULL);
+
+                    // hash has already been computed
                     } else if (computedHashes[fname] != NULL) {
                         packetOut = computedHashes[fname];
                         *GRADING << "File: " << fname << " hash request received after filecopy was done, sending its stored hash back" << endl;
+
+                    // write data to disk and read for checksum
                     } else {
                         *GRADING << "File: " << fname << " received, beginning end-to-end check" << endl;
                         bool success = true;
@@ -91,6 +109,8 @@ main(int argc, char *argv[]) {
                         int offset    = 0;
                         do {
                             writeBuff = min(512, fileSize - offset);
+
+                            // set data to point to the file data at offset
                             data = content + offset;
 
                             // success if file memory matches heap memory
@@ -124,25 +144,31 @@ main(int argc, char *argv[]) {
                     if (packetContent(packetIn)[0] == 'S') {
                         *GRADING << "File: " << fname << " end-to-end check succeeded" << endl;
 
+                        // rename the file on success
                         string newName = makeFileName(argv[TARGET_DIR], fname);
                         rename(TMPname.c_str(), newName.c_str());
 
                     } else if (packetContent(packetIn)[0] == 'F') {
                         *GRADING << "File: " << fname << " end-to-end check failed" << endl;
 
+                        // remove the file on failure
                         remove(TMPname.c_str());
                     }
 
+                    // reply with unknown packet if fname not in transfer
                     if (fileData[fname] == NULL) {
                         packetOut = makePacket('U', 0, packetNum(packetIn), NULL);
 
                     } else {
+                        // free content related to file
                         free(fileData[fname]);
                         freePacket(computedHashes[fname]);
 
+                        // set to NULL for possible retransmission
                         fileData[fname] = NULL;
                         computedHashes[fname] = NULL;
 
+                        // remove the stored writes for possible retransmisson
                         fileBytesFilled[fname].clear();
 
                         packetOut = makeAckPacket(packetIn);
@@ -159,11 +185,13 @@ main(int argc, char *argv[]) {
 
                         *GRADING << "File: " << filenameRead << " starting to receive file" << endl;
                         
+                        // if file is not actively in transfer
                         if (fileData[fString] == NULL) {
-                            fileData[fString] = (unsigned char *)malloc(totalBytes);
+                            fileData[fString] = (unsigned char *) malloc(totalBytes);
                             fileLengths[fString] = totalBytes;
                             packetOut = makeResCPacket(packetIn);
 
+                            // create file with .TMP name
                             NASTYFILE outputFile(fileNastiness);
                             string targetName = makeFileName(argv[TARGET_DIR], (fString + ".TMP"));
                             void *filePtr = NULL;
@@ -207,8 +235,9 @@ main(int argc, char *argv[]) {
             }
 
             const char *outgoingContent = packetToString(packetOut);
-
             sock -> write(outgoingContent, packetLength(packetOut));
+
+            // save hash packets in can of multiple expensive hash requests
             if (packetOpcode(packetOut) != 'H') {
                 freePacket(packetOut);
             }

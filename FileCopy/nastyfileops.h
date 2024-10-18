@@ -4,7 +4,7 @@
         * Charlie Koenig
         * Idil Kolabas
 
-    This module is an the interfact for the nastyfileops
+    This module is an the interface for the nastyfileops
     operations which support the use of C150NASTYFILE 
     including filename assembly, file format checking, 
     safe reading, and safe writing

@@ -1,1 +1,1 @@
-We are submitting late as we attempted at dealing with file nastiness in the same way for both the client and server and thus needed extra time once we realized they had to be dealt in different ways.
+We are submitting late as we attempted at dealing with file nastiness in the same way for both the client and server and thus needed extra time once we realized they had to be dealt in different ways. Specifically, we spent a lot of time that we did not anticipate figuring out the best file modes to use and when to use them
