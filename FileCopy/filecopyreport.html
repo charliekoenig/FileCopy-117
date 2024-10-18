@@ -1,0 +1,287 @@
+<!DOCTYPE HTML>
+<!-- 
+ **********************************************************
+
+             TUFTS CS 117 HOMEWORK ASSIGNMENT
+
+        Fill in your name, e-mail and answers to questions
+        in the sections provided below.
+
+          All questions are marked up: <li class="q">
+          All answers are marked up:   <li class="a">
+
+
+     PLEASE DO NOT MODIFY ANY THING OTHER THAN THE 
+     NAME, E-MAIL, AND ANSWER FIELDS (you may also add
+     css declarations in the <head> if you need them,
+     but usually you won't.
+
+ **********************************************************
+ -->
+
+
+<html lang="en">
+<head>
+<meta charset="utf-8"> 
+<title>Tufts CS 117 Assignment &#8212; File Copy Project Report</title>
+<link rel="stylesheet" type="text/css" href="https://www.cs.tufts.edu/comp/117/style/homework.css" >
+</head>
+
+<body class="homework">
+
+
+<!-- ******************************************************
+	   YOU MUST FILL IN YOUR NAME, UTLN AND EMAIL BELOW!!
+         (You may copy this from an earlier assignment
+                         if you like)
+
+     ****************************************************** -->
+
+
+<div class="student">
+<p>
+<span class="label">Student1 name: </span>
+Charlie Koenig
+<br>
+
+<span class="label">UTLN: </span>
+ckoeni01
+<br>
+
+<span class="label">E-mail: </span>
+<!-- DON'T FORGET UP UPDATE THE MAILTO: URI BELOW ALONG WITH
+     YOUR EMAIL IN THE ANCHOR.  IT SHOULD LOOK LIKE:
+ <a href="mailto:lady.gaga@cs.tufts.edu">lady.gaga@cs.tufts.edu</a>
+--> 
+
+<a href="mailto:charlie.koenig@tufts.edu">charlie.koenig@tufts.edu</a>
+<br>
+<br>
+<br>
+<span class="label">Student2 name: </span>
+Ayse Idil Kolabas
+<br>
+<span class="label">UTLN: </span>
+akolab01
+<br>
+
+<span class="label">E-mail: </span>
+<!-- DON'T FORGET UP UPDATE THE MAILTO: URI BELOW ALONG WITH
+     YOUR EMAIL IN THE ANCHOR.  IT SHOULD LOOK LIKE:
+ <a href="mailto:lady.gaga@cs.tufts.edu">lady.gaga@cs.tufts.edu</a>
+--> 
+
+<a href="mailto:ayse.kolabas@tufts.edu">ayse.kolabas@tufts.edu</a>
+
+<br>
+</p>
+</div>
+
+
+
+
+<div class="UpperLeftHeader">
+<p>Tufts CS 117 (Fall 2024):
+<br>
+Internet-scale Distributed Systems
+</p>
+</div>
+
+
+<!-- - - - - - - - - - - - - - - - - - - - - - - -
+		HOMEWORK TITLE
+  - -  - - - - - - - - - - - - - - - - - - - - - - -->
+
+
+<div class="headerdiv">
+<h1>
+Tufts CS 117:<br>
+File Copy Project Report
+</h1>
+</div>
+
+<!-- ******************************************************
+
+              PLEASE ANSWER QUESTIONS IN THE SECTIONS
+	      LABELED class="a" (for answer)
+
+     ****************************************************** -->
+
+
+
+
+<div class="main">
+
+<h2 id="questions">Questions</h2>
+<!-- - - - - - - - - - - - - - - - - - - - - - - -
+		QUESTION
+  - -  - - - - - - - - - - - - - - - - - - - - - - -->
+<div class="qa">
+
+<ol class="qa">
+<li class="q">What are the highest "nastiness" levels at which you believe your program will
+successfully copy an entire directory full of files? (We will test your programs using those levels
+on both the client and the server; if all you got working
+was the end-to-end check, then please tell us how to test your work. <em>Also: if high network nastiness messes up your ability to deal with file nastiness, you can give us two pairs: e.g. Test my client and server with networknastiness=4 and filenastiness=1 or networknastiness=0 and filenastiness=3)</em></li>
+<li class="a">
+<!-- replace XX and YY with the actual values -->
+Please test my client and server with: networknastiness=4 and filenastiness=5.
+</li>
+
+<li class="q">Is there anything else we should
+know about testing your code, or what you expect it to do
+(beyond what's explained in your report below)?</li>
+<li class="a">
+n/a
+</li>
+
+<li class="q">Did you get help from anyone other than your teammate? If "yes", then briefly explain who helped you and how.</li>
+<li class="a">
+no
+</li>
+
+
+<li class="q">(optional) Do you have any other comments on this assignment (e.g. was it worthwhile, what did you learn from it, do you have suggestions for improvment if the course is offered again)?</li>
+<li class="a">
+We found it to be really rewarding once we got it working (as far as we know). The only mentally challenging part was that the file nastiness was handled in separate ways for the client and server, which led to an unexpected delay in our submission of the project.
+</li>
+
+</ol>
+
+<!-- * * * * * * * * * * * * * * * * * * * * * -->
+<!--            REPORT GOES HERE               -->
+<!-- * * * * * * * * * * * * * * * * * * * * * -->
+
+<h2 id="reportbody">Report</h2>
+
+<ul>
+<li class="q"><b>Overview: what did you do? What worked and what didn't? Which cases do you think your code handles and why?</b></li>
+<li>We developed a UDP-based file copy protocol that copies all files from a source directory to a destination directory, potentially on a different machine. Our approach focused on making the client strict and the server flexible. The client sends packets in a specific order and only proceeds once it receives acknowledgments from the server. This method ensures reliability despite the unreliable nature of UDP. While this approach worked well overall, we encountered issues when trying to make the server more rigid. The protocol currently handles all cases to the best of our knowledge, ensuring that files are transmitted and verified accurately through repeated checks and acknowledgments.</li>
+<li class="q"><b>Describe your protocol:</b></li>
+<ul>
+     <li class="q"><b>What is the sequence of packets you send in the normal cases and for recovery?</b></li>
+          <li>
+               <ol>
+                    <li>C (Copy) Packet: The client starts by sending a C packet, which includes the file name and file size. This initiates the file transfer process for each file in the source directory. If expected acknowledgment (R packet) is not received from the server, the client keeps resending the C packet.  </li>
+                    <li>B (Byte) Packets: After the server acknowledges the C packet, the client begins sending B packets, which contain parts of the file at specific offsets. Each B packet is identified by a packet number (as are all packets) and includes the file offset, allowing the server to correctly place each piece of the file in a heap allocated buffer. The client waits for an acknowledgment (R packet) for each B packet before proceeding to step, ensuring that no data is lost in transmission. However, the client does not require acknowledgement for any B packets before it sends the following B packet. The size of the partial file content depends on how many bytes the other information takes up but is roughly 500 bytes.</li>
+                    <li>F (FileCheck) Packet: Once all B packets are sent and acknowledged, the client sends an F packet to signal that the file transfer is complete. This prompts the server to write the heap allocated memory to the file. After each write, the server reads the written data and pieces together another heap allocated file, this time built from its own reads rather than the client’s transmissions. The server computes a SHA1 hash based on this data and responds with an H packet. The ‘F’ packet is sent on intervals determined by the length of the file until the H (Hash) packet is received.</li>
+                    <li>S (Status) Packet: The client compares this hash with its own calculation to ensure the file was transmitted correctly once it receives the H packet from the server. Depending on whether the hash comparison succeeds or fails, the client sends an S packet indicating success or failure until it receives an A (Acknowledgment) packet from the server. If successful, the file transfer is marked complete. Otherwise, the file is added back to the transfer queue for retrying later. This strategy means that our program will retry filecopy for each file within a directory as long as there is at least one file that was not copied and checked successfully.</li>
+               </ol>
+          On the server side, the server maintains data structures for each file being copied. These track file sizes, the bytes that were received for that file thus far in the program, and hashes for files that were already computed. The server stores files in temporary .TMP files right after the transfer is done. After successful verification, the .TMP file is renamed to the original file name.
+          </li>
+     <li class="q"><b>What is the structure of your packets? Briefly explain each significant field. You can copy/paste the actual structs if you like, but include enough commentary (in the structs or below it) that we can figure out what's going on.</b></li>
+          We kept the same structure for our packets from our design submission:
+          <ul>
+               <li>char opcode  -> the type of packet (1 byte)</li>
+               <li>int  length  -> length of the content (10 bits)</li>
+               <li>int  packetNumber   -> index number of the packet (unique id)   (14 bits)</li>
+               <li>char content -> content (all remaining bytes + null terminator)</li>
+          </ul>
+          The content field may be further parsed in order to reveal more information for specific types of packets. (length and packetNumber would potentially differ for each packet). Different opcodes will have different ways to parse the content:
+          <table border="1">
+               <tr>
+                    <th>Opcode</th>
+                    <th>Use</th>
+                    <th>Content</th>
+               </tr>
+               <tr>
+                    <td>C</td>
+                    <td>C -> S</td>
+                    <td>filename + total bytes</td>
+               </tr>
+               <tr>
+                    <td>R</td>
+                    <td>S -> C</td>
+                    <td>C + acknowledgement</td>
+               </tr>
+               <tr>
+                    <td>B</td>
+                    <td>C -> S</td>
+                    <td>byte offset + filename length + filename + file contents</td>
+               </tr>
+               <tr>
+                    <td>R</td>
+                    <td>S -> C</td>
+                    <td>B + acknowledgement</td>
+               </tr>
+               <tr>
+                    <td>F</td>
+                    <td>C -> S</td>
+                    <td>filename to be checked</td>
+               </tr>
+               <tr>
+                    <td>H</td>
+                    <td>S -> C</td>
+                    <td>filename + file contents' hash</td>
+               </tr>
+               <tr>
+                    <td>S</td>
+                    <td>C -> S</td>
+                    <td>S for success / F for failure + filename</td>
+               </tr>
+               <tr>
+                    <td>A</td>
+                    <td>S -> C</td>
+                    <td>filename</td>
+               </tr>
+          </table>
+     <li class="q"><b>What's your approach to dealing with lost packets? Packets that are reordered?</b></li>
+          <li>Our protocol ensures reliability by having the client resend packets if no acknowledgment is received. Lost packets are automatically retransmitted after a timeout. To handle reordering, each B packet contains a packet number and an offset, allowing the server to correctly assemble the file and respond appropriately even if packets arrive out of order. The server writes the contents at the correct offset using FSEEK. This allows our safeFWrite( ) function to write to memory at any offset, although when our program writes, our file exists entirely in memory and therefore can be written in order.</li>
+     <li class="q"><b>Are there any invariants that give you confidence in the correctness of your protocol (e.g. "My rename is done after my end-to-end check succeeds, so any TARGET file without a .TMP suffix is correct")</b></li>
+          <ul>
+          <li>As the example also suggests, our rename is done after our end-to-end check succeeds, so any TARGET file without a .TMP suffix is correct.</li>
+          <li>All packets that are sent by the client, the server receives correctly, i.e. the contents are not corrupted during the transport between the two machines.</li>
+          <li>There are no errors or corruptions happening when server writes to TMP since we compare each part of the file content written with the way we have it in memory, and ensure the file size is the same as the original file size.</li>
+          </ul>
+</ul>
+<li class="q"><b>Do you expect your code to succeed when there are errors reading or writing the disk? What ensures that it will succeed, or why do you think it might not?</b></li>
+     <li>We expect our code to handle disk read/write errors effectively. By performing partial reads and validating file sizes and contents at each step, we ensure that no data corruption occurs. If an error does occur (e.g., during reading or writing), we detect it at the end to end checking stage and retry copying the file entirely.</li>
+<li class="q"><b>Are there bugs or shortcomings you know about? Are they indicated in comments in the code with NEEDSWORK? (see commenting and code quality)</b></li>
+     <li>At the moment, we are not aware of any major bugs.</li>
+<li class="q"><b>What should we look for in the grading logs? Please relate this to your explanation of the protocol you've invented (if you like, you can combine the two, indicating gradelog entries as you explain the protocol, or you can explain the gradelog separately).</b></li>
+     <li>On the client side:
+          <ul>
+               <li><code>*GRADING << "File: " << filename << " attempt " << attempts << " to send file information to server in filecopy attempt " << fileCopyAttempts[filename] << endl;</code></li>
+               <li>This is logged when the file size and filename are attempted to be sent to the server, where the first "attempts" refers to the number of times this same (C) packet was attempted to be sent while the second "attempt" refers to the filecopy attempt for the file.</li>
+               <li><code>*GRADING << "File: " << filename << ", beginning transmission, attempt " << fileCopyAttempts[filename] << endl;</code></li>
+               <li>This is logged when we receive acknowledgment from server that the file size for the file was received and right before we attempt at sending the first packet containing (possibly part of the) file content, where "attempt" refers to the filecopy attempt for the file.</li>
+               <li><code>*GRADING << "File: " << filename << " transmission complete, waiting for end-to-end check, attempt " << fileCopyAttempts[filename] << endl;</code></li>
+               <li>This is logged when we receive all of the acknowledgements for each packet we sent that contains (possibly a part of) the file content, where "attempt" refers to the filecopy attempt for the file. </li>
+               <li><code>*GRADING << "File: " << filename << " attempt " << attempts << " to receive hash, in filecopy attempt " << fileCopyAttempts[filename] << endl;</code></li>
+               <li>This is logged when client lets server know that it is ready for the file to be checked, i.e. all bytes were sent to the server (and acknowledged by the server). The "attempts" refers to the number of times F packet is sent to the server in waiting for a response that contains the hash, while the "attempt" refers to the filecopy attempt for the file.</li>
+               <li><code>*GRADING << "File: " << filename << " end-to-end check succeeded, attempt " << fileCopyAttempts[filename] << endl;</code></li>
+               <li><code>*GRADING << "File: " << filename << " end-to-end check failed, attempt " << fileCopyAttempts[filename] << endl;</code></li>
+               <li>This is logged when client makes the local comparison of the hash it computes for the source file with the hash it receives from the server solely based on this comparison, where the "attempt" refers to the filecopy attempt for the file.</li>
+               <li><code>*GRADING << "File: " << filename << " copy completed, attempt " << fileCopyAttempts[filename] << endl;</code></li>
+               <li>This is logged when client receives an acknowledgement from the server implying that it renamed or removed the TMP file based on the status client sent it, where the "attempt" refers to the filecopy attempt for the file.</li>
+          </ul>
+     </li>
+     <li>On the server side:
+          <ul>
+               <li><code>*GRADING << "File: " << filenameRead << " starting to receive file" << endl;</code></li>
+               <li>This is logged when server receives the file size.</li>
+               <li><code>*GRADING << "File: " << fname << " received, beginning end-to-end check" << endl;</code></li>
+               <li>This is logged when server receives after all of the bytes have been received, signaled by the client's F packet.</li>
+               <li><code>*GRADING << "File: " << fname << " contents written to " << targetName << endl;</code></li>
+               <li><code>*GRADING << "File: " << fname << " sending sha1 to client" << endl;</code></li>
+               <li>This is logged when contents that were received are written to TMP from memory and hashed by the SHA1 function.</li>
+               <li><code>*GRADING << "File: " << fname << " hash request received after filecopy was done, sending its stored hash back" << endl;</code></li>
+               <li>This is only logged when a delayed hash request packet (F) reaches the server after the filecopy process for that file is done.</li>
+               <li><code>*GRADING << "File: " << fname << " end-to-end check succeeded" << endl;</code></li>
+               <li><code>*GRADING << "File: " << fname << " end-to-end check failed" << endl;</code></li>
+               <li>This is logged when the S packet from the client indicating the result of the file copy is received.</li>
+          </ul>
+     </li>
+<li class="q"><b>Which cases are you aware of (e.g. high nastiness levels or particular combinations of reordering) that you aren't trying to handle correctly? In such cases, will your code detect the problem and abort (OK) or will it silently produce incorrect results?</b></li>
+     <li>We are trying to handle everything correctly.</li>
+<li class="q"><b>If your code has to give up copying one file, will it go on and try others? This can be a good thing to do. Certain protocols will tend to succeed on short files, but not on longer ones. If this is true of yours, can you explain why? If you have this problem, what file sizes do you handle at which nastiness levels, and how long does it typically take for them to be copied?</b></li>
+     <li>Our code will never totally give up, it will retry file copy until the end to end check succeeds. It takes us about 70 seconds to copy ~3 million bytes at the maximum file and network nastiness levels. Performance for files greater than ~3 million bytes was not tested.</li>
+<li class="q"><b>Are there any cases for which your code doesn't do what you expect? Do you have any intuition why that might be?</b></li>
+     <li>We have not encountered any significant unexpected behaviors in our testing so far.</li>
+<li class="q"><b>What did you learn from this asssignment?</b></li>
+     <li>This assignment taught us the importance of idempotence in network protocols. As we constructed the server, our main goal was to create a program that could handle any message at any point, and its functionality did not rely on its current state. We also (re)learned how to effectively pack and unpack bits into packets for efficiency as every bit in a network is important, and some of the details related to file modes.</li>
+</ul>
+</div>
+</div>
+</body>
+</html>
